@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="UniGuard icon">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f1f4b" />
+      <stop offset="1" stop-color="#1f7ae0" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)" />
+  <path d="M32 10 46 16v14c0 10.3-6.3 17.1-14 21.7C24.3 47.1 18 40.3 18 30V16l14-6Z" fill="#ffffff" fill-opacity="0.12" />
+  <path d="M24 22v12c0 4.4 3.6 8 8 8s8-3.6 8-8V22h-5v12c0 1.7-1.3 3-3 3s-3-1.3-3-3V22h-5Z" fill="#ffffff" />
+  <circle cx="44" cy="20" r="4" fill="#ffb54a" />
+</svg>
