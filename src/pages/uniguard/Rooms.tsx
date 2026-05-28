@@ -1,25 +1,25 @@
-import { useEffect, useState, type ReactNode } from "react";
 import { DoorOpen, PencilLine, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type { Room, RoomRequest, RoomType } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
-import { AppLayout } from "@/components/uniguard/AppLayout";
-import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AppLayout } from "@/components/uniguard/AppLayout";
+import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
 import {
-  useCreateRoomMutation,
-  useDeleteRoomMutation,
-  useDownloadRoomsTemplateMutation,
-  useRoomsQuery,
-  useUpdateRoomMutation,
-  useUploadRoomsBulkMutation,
+    useCreateRoomMutation,
+    useDeleteRoomMutation,
+    useDownloadRoomsTemplateMutation,
+    useRoomsQuery,
+    useUpdateRoomMutation,
+    useUploadRoomsBulkMutation,
 } from "@/hooks";
 import { cn } from "@/lib/utils";
-import { getErrorMessage } from "@/utils/error";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const ROOM_TYPE_LABELS: Record<RoomType, string> = {
@@ -82,7 +82,7 @@ export default function Rooms() {
       setDialogOpen(false);
       setEditingRoom(null);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 
@@ -91,7 +91,7 @@ export default function Rooms() {
       await deleteMutation.mutateAsync(id);
       toast.success("Room deleted.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 

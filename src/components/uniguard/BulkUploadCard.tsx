@@ -1,18 +1,19 @@
+import { AlertCircle, Download, FileSpreadsheet, LoaderCircle, RefreshCw, UploadCloud } from "lucide-react";
 import {
-  startTransition,
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
+    startTransition,
+    useEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type DragEvent,
 } from "react";
 import * as XLSX from "xlsx";
-import { AlertCircle, Download, FileSpreadsheet, LoaderCircle, RefreshCw, UploadCloud } from "lucide-react";
 
 import type { BulkDuplicateStrategy, BulkTemplateDownload, BulkUploadResult } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 type BulkUploadKind = "persons" | "rooms";
@@ -235,8 +236,7 @@ export function BulkUploadCard({ kind, existingNames, isUploading, onDownloadTem
       saveTemplate(download);
       toast.success(`${labels.templateButton} ready.`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to download the template.";
-      toast.error(message);
+      showErrorToast(error, { fallbackMessage: "Unable to download the template." });
     } finally {
       setIsDownloadingTemplate(false);
     }
@@ -263,8 +263,7 @@ export function BulkUploadCard({ kind, existingNames, isUploading, onDownloadTem
     } catch (error) {
       setSelectedFile(null);
       setRawRows([]);
-      const message = error instanceof Error ? error.message : "The Excel file could not be parsed.";
-      toast.error(message);
+      showErrorToast(error, { fallbackMessage: "The Excel file could not be parsed." });
     } finally {
       setIsParsingPreview(false);
     }
@@ -287,8 +286,7 @@ export function BulkUploadCard({ kind, existingNames, isUploading, onDownloadTem
         toast.error("No rows were imported. Review the errors and try again.");
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Upload failed.";
-      toast.error(message);
+      showErrorToast(error, { fallbackMessage: "Upload failed." });
     }
   }
 

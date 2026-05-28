@@ -1,27 +1,27 @@
-import { useEffect, useState, type ReactNode } from "react";
 import { PencilLine, Plus, Trash2, UserCog, Users } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type { Person, PersonRequest, PersonRole, WeekDay } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
-import { DayBadges } from "@/components/uniguard/DayBadges";
-import { AppLayout } from "@/components/uniguard/AppLayout";
-import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AppLayout } from "@/components/uniguard/AppLayout";
+import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
+import { DayBadges } from "@/components/uniguard/DayBadges";
 import {
-  useCreatePersonMutation,
-  useDeletePersonMutation,
-  useDownloadPeopleTemplateMutation,
-  usePeopleQuery,
-  useUploadPeopleBulkMutation,
-  useUpdatePersonMutation,
+    useCreatePersonMutation,
+    useDeletePersonMutation,
+    useDownloadPeopleTemplateMutation,
+    usePeopleQuery,
+    useUpdatePersonMutation,
+    useUploadPeopleBulkMutation,
 } from "@/hooks";
 import { roleLabel } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
-import { getErrorMessage } from "@/utils/error";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const DEFAULT_AVAILABLE_DAYS: WeekDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu"];
@@ -69,7 +69,7 @@ export default function People() {
       setDialogOpen(false);
       setEditingPerson(null);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 
@@ -78,7 +78,7 @@ export default function People() {
       await deleteMutation.mutateAsync(id);
       toast.success("Person deleted.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 

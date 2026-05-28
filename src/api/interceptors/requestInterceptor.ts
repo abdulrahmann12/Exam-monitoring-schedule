@@ -1,11 +1,12 @@
 import { AxiosHeaders, type AxiosInstance } from "axios";
 
+import { DEMO_LOGIN_ENDPOINT } from "../../lib/demoMode";
 import { ApiError } from "../types";
 import { clearStoredAuthSession, getStoredAuthSession, isAuthSessionExpired } from "../utils/authStorage";
 import { logApiError } from "../utils/errorHandler";
 import { redirectToLogin } from "../utils/navigation";
 
-const PUBLIC_ENDPOINTS = new Set(["/api/auth/login"]);
+const PUBLIC_ENDPOINTS = new Set(["/api/auth/login", DEMO_LOGIN_ENDPOINT]);
 
 function isPublicEndpoint(url?: string): boolean {
   if (!url) {

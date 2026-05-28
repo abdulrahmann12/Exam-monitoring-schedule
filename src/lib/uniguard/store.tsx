@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { toast } from "sonner";
 
 import type {
     Assignment as ApiAssignment,
@@ -16,7 +15,7 @@ import type {
 } from "@/api";
 import { queryKeys } from "@/hooks/queryKeys";
 import { assignmentsService, peopleService, roomsService, timeSlotsService } from "@/services";
-import { getErrorMessage } from "@/utils/error";
+import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
 import { validateAssignment, validateSlotAssignments } from "./constraintEngine";
@@ -563,9 +562,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (errorValue) {
-      toast.error("Could not save schedule changes.", {
-        description: getErrorMessage(errorValue),
-      });
+      showErrorToast(errorValue, { title: "Could not save schedule changes." });
       return false;
     } finally {
       setIsPersisting(false);
@@ -590,9 +587,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
     } catch (errorValue) {
-      toast.error("Could not update the time slot.", {
-        description: getErrorMessage(errorValue),
-      });
+      showErrorToast(errorValue, { title: "Could not update the time slot." });
     } finally {
       setIsPersisting(false);
     }

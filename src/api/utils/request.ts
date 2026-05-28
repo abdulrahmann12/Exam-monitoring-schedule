@@ -2,6 +2,7 @@ import type { AxiosRequestConfig, AxiosResponse } from "axios";
 
 import { apiClient } from "../client";
 import { ApiError, type RequestDeduplicationOptions, type ServiceResponse } from "../types";
+import { resolveDemoSandboxRequest, trackDemoSandboxResponse } from "./demoSandbox";
 import { normalizeApiError } from "./errorHandler";
 import { executeWithRequestDeduplication, resolveRequestDeduplicationOptions } from "./requestDeduplication";
 import { createErrorResponse, createSuccessResponse } from "./serviceResponse";
@@ -21,6 +22,12 @@ export async function performRequest<TResponse, TResult = TResponse>(
 ): Promise<ServiceResponse<TResult>> {
   const { dedupe, ...axiosConfig } = config;
 
+  const demoResponse = await resolveDemoSandboxRequest<TResult>(axiosConfig);
+
+  if (demoResponse) {
+    return demoResponse;
+  }
+
   try {
     const response = await executeWithRequestDeduplication<AxiosResponse<TResponse>>({
       config: axiosConfig,
@@ -30,7 +37,8 @@ export async function performRequest<TResponse, TResult = TResponse>(
         signal,
       }),
     });
-    const data = transform ? transform(response.data, response) : (response.data as TResult);
+    const transformedData = transform ? transform(response.data, response) : (response.data as TResult);
+    const data = trackDemoSandboxResponse(axiosConfig, transformedData);
 
     return createSuccessResponse(data);
   } catch (error) {

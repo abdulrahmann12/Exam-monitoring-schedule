@@ -1,7 +1,7 @@
+import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { format } from "date-fns";
 import { Room, ScheduleEntry, Slot, Staff } from "./types";
 
 export interface ExportContext {
@@ -25,12 +25,12 @@ const PDF_FOOTER_HEIGHT = 104;
 const PDF_FOOTER_SIGNATORIES = [
   {
     align: "left" as const,
-    name: "Asso. Prof. El Amira Hend Khattab",
+    name: "Dr. Alice Johnson",
     title: "Head of Schedules Committee",
   },
   {
     align: "right" as const,
-    name: "Prof. Dr. Rowayda Sadek",
+    name: "Prof. Bob Smith",
     title: "University Vice President",
   },
 ];

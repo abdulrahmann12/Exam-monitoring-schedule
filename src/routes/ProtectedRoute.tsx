@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
+import { DemoModeBanner } from "@/components/uniguard/DemoModeBanner";
 import { useAuth } from "@/state/auth";
 
 function RouteLoader() {
@@ -25,5 +26,10 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <DemoModeBanner />
+      <Outlet />
+    </>
+  );
 }

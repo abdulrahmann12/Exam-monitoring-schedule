@@ -1,5 +1,13 @@
 import axios from "axios";
 
+import {
+    DEMO_LOGIN_INVALID_RESPONSE_MESSAGE,
+    DEMO_LOGIN_NETWORK_MESSAGE,
+    DEMO_LOGIN_RATE_LIMIT_MESSAGE,
+    DEMO_LOGIN_TIMEOUT_MESSAGE,
+    DEMO_LOGIN_UNAVAILABLE_MESSAGE,
+    isDemoLoginPath,
+} from "../../lib/demoMode";
 import { ApiError, type BackendErrorResponse } from "../types";
 
 function extractTextMessage(payload: string): string | undefined {
@@ -76,13 +84,31 @@ function toUserFriendlyMessage(options: {
   requestPath?: string;
 }): string {
   const { status, backendMessage, validationErrors = [], isNetworkError, isTimeoutError, requestPath } = options;
+  const isDemoLoginRequest = isDemoLoginPath(requestPath);
 
   if (isTimeoutError) {
-    return "The scheduling service took too long to respond. Please try again.";
+    return isDemoLoginRequest
+      ? DEMO_LOGIN_TIMEOUT_MESSAGE
+      : "The scheduling service took too long to respond. Please try again.";
   }
 
   if (isNetworkError) {
-    return "Unable to reach the scheduling service. Check the backend connection and try again.";
+    return isDemoLoginRequest
+      ? DEMO_LOGIN_NETWORK_MESSAGE
+      : "Unable to reach the scheduling service. Check the backend connection and try again.";
+  }
+
+  if (isDemoLoginRequest) {
+    switch (status) {
+      case 404:
+        return DEMO_LOGIN_UNAVAILABLE_MESSAGE;
+      case 429:
+        return DEMO_LOGIN_RATE_LIMIT_MESSAGE;
+      default:
+        if (typeof status === "number" && status >= 500) {
+          return DEMO_LOGIN_INVALID_RESPONSE_MESSAGE;
+        }
+    }
   }
 
   switch (status) {
@@ -102,6 +128,8 @@ function toUserFriendlyMessage(options: {
       return backendMessage || "The requested resource could not be found.";
     case 409:
       return backendMessage || "The request conflicts with the current server state.";
+    case 429:
+      return "Too many requests were sent. Please wait a moment and try again.";
     default:
       if (typeof status === "number" && status >= 500) {
         return "The server could not complete the request. Please try again later.";

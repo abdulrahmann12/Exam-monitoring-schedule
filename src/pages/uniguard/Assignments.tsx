@@ -29,7 +29,7 @@ import {
     useTimeSlotsQuery,
     useUpdateAssignmentMutation,
 } from "@/hooks";
-import { getErrorMessage } from "@/utils/error";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 interface AssignmentFormState {
@@ -138,7 +138,7 @@ export default function AssignmentsPage() {
       setDialogOpen(false);
       setEditingAssignment(null);
     } catch (errorValue) {
-      toast.error(getErrorMessage(errorValue));
+      showErrorToast(errorValue);
     }
   }
 
@@ -147,7 +147,7 @@ export default function AssignmentsPage() {
       await deleteMutation.mutateAsync(id);
       toast.success("Assignment deleted.");
     } catch (errorValue) {
-      toast.error(getErrorMessage(errorValue));
+      showErrorToast(errorValue);
     }
   }
 
@@ -170,9 +170,7 @@ export default function AssignmentsPage() {
         description: result.firstError ?? "Some assignments could not be removed.",
       });
     } catch (errorValue) {
-      toast.error("Could not delete all assignments.", {
-        description: getErrorMessage(errorValue),
-      });
+      showErrorToast(errorValue, { title: "Could not delete all assignments." });
     }
   }
 

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
-import { getErrorMessage } from "@/utils/error";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const DEFAULT_SETTINGS_FORM: SettingsRequest = {
@@ -79,7 +79,7 @@ export default function Settings() {
       await updateMutation.mutateAsync(savePayload);
       toast.success("Settings updated.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 

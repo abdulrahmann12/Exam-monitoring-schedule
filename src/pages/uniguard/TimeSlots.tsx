@@ -1,22 +1,22 @@
-import { useEffect, useState, type ReactNode } from "react";
 import { Clock3, PencilLine, Plus, Power, Trash2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type { TimeSlot, TimeSlotRequest } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
-import { AppLayout } from "@/components/uniguard/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AppLayout } from "@/components/uniguard/AppLayout";
 import {
-  useCreateTimeSlotMutation,
-  useDeactivateTimeSlotMutation,
-  useDeleteTimeSlotMutation,
-  useTimeSlotsQuery,
-  useUpdateTimeSlotMutation,
+    useCreateTimeSlotMutation,
+    useDeactivateTimeSlotMutation,
+    useDeleteTimeSlotMutation,
+    useTimeSlotsQuery,
+    useUpdateTimeSlotMutation,
 } from "@/hooks";
-import { getErrorMessage } from "@/utils/error";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const DEFAULT_TIME_SLOT_FORM: TimeSlotRequest = {
@@ -74,7 +74,7 @@ export default function TimeSlotsPage() {
       setDialogOpen(false);
       setEditingSlot(null);
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 
@@ -83,7 +83,7 @@ export default function TimeSlotsPage() {
       await deactivateMutation.mutateAsync(id);
       toast.success("Time slot deactivated.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 
@@ -92,7 +92,7 @@ export default function TimeSlotsPage() {
       await deleteMutation.mutateAsync(id);
       toast.success("Time slot deleted.");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      showErrorToast(error);
     }
   }
 
