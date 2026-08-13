@@ -16,6 +16,7 @@ import {
     useTimeSlotsQuery,
     useUpdateTimeSlotMutation,
 } from "@/hooks";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
@@ -35,6 +36,7 @@ function normalizeTimeValue(value: string): string {
 }
 
 export default function TimeSlotsPage() {
+  const { error: groupError, isLoading: groupsLoading, refetch: refetchGroups } = useScheduleGroup();
   const timeSlotsQuery = useTimeSlotsQuery();
   const createMutation = useCreateTimeSlotMutation();
   const updateMutation = useUpdateTimeSlotMutation();
@@ -43,9 +45,17 @@ export default function TimeSlotsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null);
 
-  if (timeSlotsQuery.isLoading) {
+  if (groupError) {
     return (
-      <AppLayout title="Time Slots" subtitle="Configure the reusable exam sessions available for assignments.">
+      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
+        <ErrorState description={getErrorMessage(groupError)} onRetry={() => void refetchGroups()} />
+      </AppLayout>
+    );
+  }
+
+  if (groupsLoading || timeSlotsQuery.isPending) {
+    return (
+      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
         <LoadingState title="Loading time slots..." description="Fetching slot templates from the backend." />
       </AppLayout>
     );
@@ -53,7 +63,7 @@ export default function TimeSlotsPage() {
 
   if (timeSlotsQuery.isError) {
     return (
-      <AppLayout title="Time Slots" subtitle="Configure the reusable exam sessions available for assignments.">
+      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
         <ErrorState description={getErrorMessage(timeSlotsQuery.error)} onRetry={() => void timeSlotsQuery.refetch()} />
       </AppLayout>
     );
@@ -99,7 +109,7 @@ export default function TimeSlotsPage() {
   return (
     <AppLayout
       title="Time Slots"
-      subtitle="Configure the reusable exam sessions available for assignments."
+      subtitle="Configure exam sessions for the selected period. People and rooms stay shared."
       actions={
         <TimeSlotDialog
           key={editingSlot?.id ?? "new-slot"}

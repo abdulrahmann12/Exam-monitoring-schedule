@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS_FORM: SettingsRequest = {
 export default function Settings() {
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
+  const { activeGroup } = useScheduleGroup();
   const [formState, setFormState] = useState<SettingsRequest>(DEFAULT_SETTINGS_FORM);
 
   const savePayload = useMemo<SettingsRequest>(
@@ -34,9 +36,9 @@ export default function Settings() {
       theme: formState.theme,
       universityName: formState.universityName.trim(),
       department: formState.department?.trim() || null,
-      examPeriod: formState.examPeriod.trim(),
+      examPeriod: settingsQuery.data?.examPeriod?.trim() || formState.examPeriod.trim(),
     }),
-    [formState],
+    [formState, settingsQuery.data?.examPeriod],
   );
 
   useEffect(() => {
@@ -135,7 +137,10 @@ export default function Settings() {
             </div>
             <div>
               <Label>Exam period</Label>
-              <Input value={formState.examPeriod} onChange={(event) => setFormState((previous) => ({ ...previous, examPeriod: event.target.value }))} />
+              <Input value={activeGroup?.name ?? formState.examPeriod} readOnly className="bg-muted/40" />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Follows the period selected in the header. Create or switch groups there.
+              </p>
             </div>
           </div>
 
@@ -143,10 +148,10 @@ export default function Settings() {
             <div className="text-xs opacity-90">{formState.universityName || "University"}</div>
             <div className="mt-1 text-2xl font-bold">{formState.systemName || "System name"}</div>
             <div className="text-sm opacity-90">{formState.appTagline || "Tagline"}</div>
-            <div className="mt-4 text-xs opacity-90">{formState.department || "Department"} · {formState.examPeriod || "Exam period"}</div>
+            <div className="mt-4 text-xs opacity-90">{formState.department || "Department"} · {activeGroup?.name || formState.examPeriod || "Exam period"}</div>
           </div>
 
-          <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !formState.examPeriod.trim()} onClick={() => void handleSave()}>
+          <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !(activeGroup?.name || formState.examPeriod).trim()} onClick={() => void handleSave()}>
             {saveState === "pending" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saveState === "pending" ? "Saving..." : saveState === "cooldown" ? "Saved" : "Save settings"}
           </Button>

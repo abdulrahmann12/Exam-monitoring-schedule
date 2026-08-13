@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useUniGuard } from "@/lib/uniguard/store";
 import { useBranding } from "@/lib/branding/BrandingProvider";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { FileDown, Calendar as CalendarIcon, FileText, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,6 +23,8 @@ interface Props {
 export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = "pdf" }: Props) {
   const { schedule, staff, rooms, slots } = useUniGuard();
   const branding = useBranding();
+  const { activeGroup } = useScheduleGroup();
+  const examPeriod = activeGroup?.name || branding.examPeriod;
   const [fmt, setFmt] = useState<"pdf" | "xlsx">(initialFormat);
   const [mode, setMode] = useState<"single" | "full">("single");
   const [date, setDate] = useState<Date>(defaultDate ? new Date(defaultDate) : new Date());
@@ -41,7 +44,7 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
         appName: branding.appName,
         university: branding.university,
         department: branding.department,
-        examPeriod: branding.examPeriod,
+        examPeriod,
         logoDataUrl: branding.logoDataUrl,
       },
     };
@@ -118,8 +121,8 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
           )}
 
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">
-            <span className="font-medium text-foreground">Header:</span> {branding.university} · {branding.department} · {branding.examPeriod}
-            <div className="mt-1">Update these in <span className="font-medium">Settings</span>.</div>
+            <span className="font-medium text-foreground">Header:</span> {branding.university} · {branding.department} · {examPeriod}
+            <div className="mt-1">University and department come from Settings. The exam period follows the header selector.</div>
           </div>
         </div>
 

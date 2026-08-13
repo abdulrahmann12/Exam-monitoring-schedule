@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useBranding } from "@/lib/branding/BrandingProvider";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { ScheduleGroupSelector } from "@/components/uniguard/ScheduleGroupSelector";
 import { useAuth } from "@/state/auth";
 
 export function AppLayout({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
@@ -26,6 +27,7 @@ export function AppLayout({ children, title, subtitle, actions }: { children: Re
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <ScheduleGroupSelector />
               <button onClick={() => void toggleTheme()} aria-label="Toggle theme" className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition-smooth">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>

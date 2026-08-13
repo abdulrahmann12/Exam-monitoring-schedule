@@ -265,6 +265,10 @@ function comparePeople(left: Person, right: Person, params?: PeopleQuery): numbe
       case "role":
         return compareNullable(left.role, right.role) || compareNullable(left.name, right.name);
       case "totalAssignments":
+        if (params?.scheduleGroupId) {
+          const counts = countAssignmentsForGroup(params.scheduleGroupId);
+          return compareNullable(counts.get(left.id) ?? 0, counts.get(right.id) ?? 0) || compareNullable(left.name, right.name);
+        }
         return compareNullable(left.totalAssignments, right.totalAssignments) || compareNullable(left.name, right.name);
       case "name":
       default:
@@ -382,6 +386,10 @@ function matchesRoomsQuery(room: Room, params?: RoomsQuery): boolean {
 }
 
 function matchesTimeSlotsQuery(timeSlot: TimeSlot, params?: TimeSlotsQuery): boolean {
+  if (params?.scheduleGroupId && timeSlot.scheduleGroupId !== params.scheduleGroupId) {
+    return false;
+  }
+
   if (params?.activeOnly && !timeSlot.active) {
     return false;
   }
@@ -394,6 +402,10 @@ function matchesTimeSlotsQuery(timeSlot: TimeSlot, params?: TimeSlotsQuery): boo
 }
 
 function matchesAssignmentsQuery(assignment: Assignment, params?: AssignmentsQuery): boolean {
+  if (params?.scheduleGroupId && assignment.scheduleGroupId !== params.scheduleGroupId) {
+    return false;
+  }
+
   if (params?.slotId && assignment.timeSlotId !== params.slotId) {
     return false;
   }
@@ -431,12 +443,13 @@ function isRoomsQueryFiltered(params?: RoomsQuery): boolean {
 }
 
 function isTimeSlotsQueryFiltered(params?: TimeSlotsQuery): boolean {
-  return Boolean(params?.activeOnly || params?.label);
+  return Boolean(params?.scheduleGroupId || params?.activeOnly || params?.label);
 }
 
 function isAssignmentsQueryFiltered(params?: AssignmentsQuery): boolean {
   return Boolean(
-    params?.slotId
+    params?.scheduleGroupId
+    || params?.slotId
     || params?.roomId
     || typeof params?.locked === "boolean"
     || params?.fromDate
@@ -560,6 +573,7 @@ function createAssignmentRecord(
 
   return {
     id: options?.id ?? createDemoId("demo_assignment"),
+    scheduleGroupId: payload.scheduleGroupId,
     examDate: payload.examDate,
     roomId: payload.roomId,
     roomName: room?.name ?? "Unknown room",
@@ -617,6 +631,46 @@ function rebuildAssignmentsFromRelatedData(): void {
   });
 }
 
+function countAssignmentsForGroup(scheduleGroupId: UUID): Map<UUID, number> {
+  const counts = new Map<UUID, number>();
+
+  getAssignmentsStore().records.forEach((assignment) => {
+    if (assignment.scheduleGroupId && assignment.scheduleGroupId !== scheduleGroupId) {
+      return;
+    }
+
+    if (assignment.chiefInvigilatorId) {
+      counts.set(assignment.chiefInvigilatorId, (counts.get(assignment.chiefInvigilatorId) ?? 0) + 1);
+    }
+
+    assignment.invigilators.forEach((invigilator) => {
+      if (invigilator.invigilatorId) {
+        counts.set(invigilator.invigilatorId, (counts.get(invigilator.invigilatorId) ?? 0) + 1);
+      }
+    });
+  });
+
+  return counts;
+}
+
+function overlayPeopleGroupWorkload(
+  response: NormalizedPaginatedResponse<Person>,
+  scheduleGroupId?: UUID,
+): NormalizedPaginatedResponse<Person> {
+  if (!scheduleGroupId) {
+    return response;
+  }
+
+  const counts = countAssignmentsForGroup(scheduleGroupId);
+  return {
+    ...response,
+    items: response.items.map((person) => ({
+      ...person,
+      totalAssignments: counts.get(person.id) ?? 0,
+    })),
+  };
+}
+
 function recalculatePersonAssignmentTotals(): void {
   const peopleStore = getPeopleStore();
 
@@ -653,6 +707,7 @@ function createPersonRecord(payload: PersonRequest, options?: { createdAt?: stri
     id: options?.id ?? createDemoId("demo_person"),
     name: normalizeWhitespace(payload.name),
     department: normalizeWhitespace(payload.department),
+    email: normalizeText(payload.email)?.toLowerCase() ?? null,
     role: payload.role,
     availableDays: payload.availableDays.length > 0 ? [...payload.availableDays] : DEFAULT_WEEK_DAYS,
     totalAssignments: 0,
@@ -668,6 +723,7 @@ function updatePersonRecord(existing: Person, payload: PersonRequest): Person {
     ...existing,
     name: normalizeWhitespace(payload.name),
     department: normalizeWhitespace(payload.department),
+    email: normalizeText(payload.email)?.toLowerCase() ?? null,
     role: payload.role,
     availableDays: payload.availableDays.length > 0 ? [...payload.availableDays] : DEFAULT_WEEK_DAYS,
     updatedAt: createIsoTimestamp(),
@@ -705,6 +761,7 @@ function createTimeSlotRecord(payload: TimeSlotRequest, options?: { createdAt?: 
 
   return {
     id: options?.id ?? createDemoId("demo_slot"),
+    scheduleGroupId: payload.scheduleGroupId,
     label: normalizeWhitespace(payload.label ?? "New time slot") || "New time slot",
     startTime: payload.startTime,
     endTime: payload.endTime,
@@ -1105,13 +1162,18 @@ function handleAssignmentsBulkSave(data: unknown) {
 
   const examDate = payload[0]?.examDate;
   const slotId = payload[0]?.slotId;
+  const scheduleGroupId = payload[0]?.scheduleGroupId;
 
   if (!examDate || !slotId) {
     return createSuccessResponse<Assignment[]>([]);
   }
 
   [...getAssignmentsStore().records.values()]
-    .filter((assignment) => assignment.examDate === examDate && assignment.timeSlotId === slotId)
+    .filter((assignment) => (
+      assignment.examDate === examDate
+      && assignment.timeSlotId === slotId
+      && (!scheduleGroupId || assignment.scheduleGroupId === scheduleGroupId)
+    ))
     .forEach((assignment) => deleteCollectionRecord(getAssignmentsStore(), assignment.id));
 
   const generationVersion = getNextGenerationVersion();
@@ -1123,6 +1185,7 @@ function handleAssignmentsBulkSave(data: unknown) {
     ));
 
     const nextAssignment = createAssignmentRecord({
+      scheduleGroupId: entry.scheduleGroupId,
       examDate: entry.examDate,
       roomId: entry.roomId,
       timeSlotId: entry.slotId,
@@ -1225,7 +1288,11 @@ async function handleBulkMutation(path: string, params: unknown, data: unknown) 
 
 function resolveCollectionGet(path: string, params: DemoParams) {
   if (path === "/api/people" && getPeopleStore().complete) {
-    return createSuccessResponse(deriveCollectionResponse(getPeopleStore(), params as PeopleQuery | undefined, matchesPeopleQuery, comparePeople));
+    const peopleParams = params as PeopleQuery | undefined;
+    return createSuccessResponse(overlayPeopleGroupWorkload(
+      deriveCollectionResponse(getPeopleStore(), peopleParams, matchesPeopleQuery, comparePeople),
+      peopleParams?.scheduleGroupId,
+    ));
   }
 
   if (path === "/api/rooms" && getRoomsStore().complete) {
@@ -1254,7 +1321,11 @@ function trackCollectionGet(path: string, params: DemoParams, data: unknown): un
       data as NormalizedPaginatedResponse<Person>,
       !isPeopleQueryFiltered(params as PeopleQuery | undefined),
     );
-    return deriveCollectionResponse(getPeopleStore(), params as PeopleQuery | undefined, matchesPeopleQuery, comparePeople);
+    const peopleParams = params as PeopleQuery | undefined;
+    return overlayPeopleGroupWorkload(
+      deriveCollectionResponse(getPeopleStore(), peopleParams, matchesPeopleQuery, comparePeople),
+      peopleParams?.scheduleGroupId,
+    );
   }
 
   if (path === "/api/rooms") {

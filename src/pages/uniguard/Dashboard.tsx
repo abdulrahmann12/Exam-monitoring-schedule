@@ -6,17 +6,27 @@ import { StatCard } from "@/components/uniguard/StatCard";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useAssignmentsQuery, usePeopleQuery, useRoomsQuery, useTimeSlotsQuery } from "@/hooks";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage } from "@/utils/error";
 
 export default function Dashboard() {
+  const { error: groupError, isLoading: groupsLoading, refetch: refetchGroups } = useScheduleGroup();
   const peopleQuery = usePeopleQuery();
   const roomsQuery = useRoomsQuery();
   const assignmentsQuery = useAssignmentsQuery();
   const timeSlotsQuery = useTimeSlotsQuery({ page: 0, size: 20, sortBy: "sortOrder", direction: "ASC", activeOnly: true });
 
-  if (peopleQuery.isLoading || roomsQuery.isLoading || assignmentsQuery.isLoading || timeSlotsQuery.isLoading) {
+  if (groupError) {
     return (
-      <AppLayout title="Dashboard" subtitle="An at-a-glance view of your exam resource plan.">
+      <AppLayout title="Dashboard" subtitle="An at-a-glance view of the selected exam period. People and rooms are shared.">
+        <ErrorState description={getErrorMessage(groupError)} onRetry={() => void refetchGroups()} />
+      </AppLayout>
+    );
+  }
+
+  if (groupsLoading || peopleQuery.isLoading || roomsQuery.isLoading || assignmentsQuery.isPending || timeSlotsQuery.isPending) {
+    return (
+      <AppLayout title="Dashboard" subtitle="An at-a-glance view of the selected exam period. People and rooms are shared.">
         <LoadingState title="Loading dashboard..." description="Collecting staffing, rooms, assignments, and time-slot metrics." />
       </AppLayout>
     );
@@ -25,7 +35,7 @@ export default function Dashboard() {
   const error = peopleQuery.error ?? roomsQuery.error ?? assignmentsQuery.error ?? timeSlotsQuery.error;
   if (peopleQuery.isError || roomsQuery.isError || assignmentsQuery.isError || timeSlotsQuery.isError) {
     return (
-      <AppLayout title="Dashboard" subtitle="An at-a-glance view of your exam resource plan.">
+      <AppLayout title="Dashboard" subtitle="An at-a-glance view of the selected exam period. People and rooms are shared.">
         <ErrorState
           description={getErrorMessage(error)}
           onRetry={() => {
@@ -60,7 +70,7 @@ export default function Dashboard() {
   return (
     <AppLayout
       title="Dashboard"
-      subtitle="An at-a-glance view of your exam resource plan."
+      subtitle="An at-a-glance view of the selected exam period. People and rooms are shared."
       actions={
         <Link to="/assignments">
           <Button className="gap-2 shadow-elevated">
@@ -109,7 +119,7 @@ export default function Dashboard() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-card">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-display text-lg font-semibold">Top assigned</h3>
-              <span className="text-xs text-muted-foreground">Workload</span>
+              <span className="text-xs text-muted-foreground">This period</span>
             </div>
             <ul className="space-y-3">
               {topAssigned.map((person, index) => (

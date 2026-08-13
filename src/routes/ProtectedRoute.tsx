@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { DemoModeBanner } from "@/components/uniguard/DemoModeBanner";
 import { useAuth } from "@/state/auth";
+import { ScheduleGroupProvider } from "@/state/scheduleGroup";
 
 function RouteLoader() {
   return (
@@ -27,9 +28,9 @@ export function ProtectedRoute() {
   }
 
   return (
-    <>
+    <ScheduleGroupProvider>
       <DemoModeBanner />
       <Outlet />
-    </>
+    </ScheduleGroupProvider>
   );
 }

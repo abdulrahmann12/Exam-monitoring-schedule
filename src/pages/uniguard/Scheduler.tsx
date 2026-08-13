@@ -106,7 +106,7 @@ export default function Scheduler() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Flexible Exam Resource Planner" subtitle="Dynamic Chief Invigilator and Invigilator allocation with real-time constraint validation.">
+      <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period.">
         <LoadingState title="Loading scheduler..." description="Fetching people, rooms, time slots, and saved assignments." />
       </AppLayout>
     );
@@ -114,7 +114,7 @@ export default function Scheduler() {
 
   if (error) {
     return (
-      <AppLayout title="Flexible Exam Resource Planner" subtitle="Dynamic Chief Invigilator and Invigilator allocation with real-time constraint validation.">
+      <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period.">
         <ErrorState description={getErrorMessage(error)} />
       </AppLayout>
     );
@@ -122,7 +122,7 @@ export default function Scheduler() {
 
   if (rooms.length === 0 || slots.length === 0) {
     return (
-      <AppLayout title="Flexible Exam Resource Planner" subtitle="Dynamic Chief Invigilator and Invigilator allocation with real-time constraint validation.">
+      <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period.">
         <EmptyState
           title="Scheduler prerequisites missing"
           description={rooms.length === 0 ? "Add at least one room before generating a schedule." : "Add at least one time slot before generating a schedule."}
@@ -140,7 +140,7 @@ export default function Scheduler() {
   };
 
   return (
-    <AppLayout title="Flexible Exam Resource Planner" subtitle="Dynamic Chief Invigilator and Invigilator allocation with real-time constraint validation." actions={<div className="flex flex-wrap gap-2"><Button variant="outline" className="gap-2" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button><Button className="gap-2" disabled={!entry || !entryDirty || isPersisting} onClick={() => void handleSave()}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save" : "Saved"}</Button></div>}>
+    <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period." actions={<div className="flex flex-wrap gap-2"><Button variant="outline" className="gap-2" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button><Button className="gap-2" disabled={!entry || !entryDirty || isPersisting} onClick={() => void handleSave()}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save" : "Saved"}</Button></div>}>
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <StepCard step={1} title="Date & time slot" done={!!date}>

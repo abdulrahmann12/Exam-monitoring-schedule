@@ -29,6 +29,7 @@ import {
     useTimeSlotsQuery,
     useUpdateAssignmentMutation,
 } from "@/hooks";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ interface AssignmentFormState {
 }
 
 export default function AssignmentsPage() {
+  const { error: groupError, isLoading: groupsLoading, refetch: refetchGroups } = useScheduleGroup();
   const [searchQuery, setSearchQuery] = useState("");
   const [roomFilter, setRoomFilter] = useState("");
   const [slotFilter, setSlotFilter] = useState("");
@@ -76,12 +78,20 @@ export default function AssignmentsPage() {
   const deleteAllMutation = useDeleteAllAssignmentsMutation();
   const deleteMutation = useDeleteAssignmentMutation();
 
-  const anyLoading = assignmentsQuery.isLoading || peopleQuery.isLoading || roomsQuery.isLoading || timeSlotsQuery.isLoading;
-  const error = assignmentsQuery.error ?? peopleQuery.error ?? roomsQuery.error ?? timeSlotsQuery.error;
+  const anyLoading = groupsLoading || assignmentsQuery.isPending || peopleQuery.isLoading || roomsQuery.isLoading || timeSlotsQuery.isPending;
+  const error = groupError ?? assignmentsQuery.error ?? peopleQuery.error ?? roomsQuery.error ?? timeSlotsQuery.error;
+
+  if (groupError) {
+    return (
+      <AppLayout title="Assignments" subtitle="Manage room assignments for the selected exam period.">
+        <ErrorState description={getErrorMessage(groupError)} onRetry={() => void refetchGroups()} />
+      </AppLayout>
+    );
+  }
 
   if (anyLoading) {
     return (
-      <AppLayout title="Assignments" subtitle="Manage room assignments across dates, time slots, and invigilators.">
+      <AppLayout title="Assignments" subtitle="Manage room assignments for the selected exam period.">
         <LoadingState title="Loading assignments..." description="Fetching assignments and their lookup data." />
       </AppLayout>
     );
@@ -89,7 +99,7 @@ export default function AssignmentsPage() {
 
   if (assignmentsQuery.isError || peopleQuery.isError || roomsQuery.isError || timeSlotsQuery.isError) {
     return (
-      <AppLayout title="Assignments" subtitle="Manage room assignments across dates, time slots, and invigilators.">
+      <AppLayout title="Assignments" subtitle="Manage room assignments for the selected exam period.">
         <ErrorState
           description={getErrorMessage(error)}
           onRetry={() => {
@@ -177,7 +187,7 @@ export default function AssignmentsPage() {
   return (
     <AppLayout
       title="Assignments"
-      subtitle="Manage room assignments across dates, time slots, and invigilators."
+      subtitle="Manage room assignments for the selected exam period."
       actions={
         <div className="flex flex-wrap gap-2">
           <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>

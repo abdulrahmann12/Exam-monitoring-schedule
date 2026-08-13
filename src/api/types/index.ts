@@ -4,5 +4,6 @@ export * from "./auth";
 export * from "./bulk";
 export * from "./people";
 export * from "./rooms";
+export * from "./scheduleGroups";
 export * from "./settings";
 export * from "./timeSlots";

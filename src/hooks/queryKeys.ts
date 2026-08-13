@@ -23,4 +23,8 @@ export const queryKeys = {
     all: ["settings"] as const,
     detail: () => ["settings", "detail"] as const,
   },
+  scheduleGroups: {
+    all: ["schedule-groups"] as const,
+    list: (params?: unknown) => ["schedule-groups", "list", params ?? null] as const,
+  },
 };

@@ -11,11 +11,13 @@ export interface PeopleQuery {
   role?: PersonRole;
   department?: string;
   name?: string;
+  scheduleGroupId?: UUID;
 }
 
 export interface PersonRequest {
   name: string;
   department: string;
+  email?: string | null;
   role: PersonRole;
   availableDays: WeekDay[];
 }
@@ -24,6 +26,7 @@ export interface Person {
   id: UUID;
   name: string;
   department: string;
+  email?: string | null;
   role: PersonRole;
   availableDays: WeekDay[];
   totalAssignments: number;

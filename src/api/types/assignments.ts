@@ -16,6 +16,7 @@ export interface AssignmentsQuery {
     | "timeSlot.startTime"
     | "room.name";
   direction?: SortDirection;
+  scheduleGroupId?: UUID;
   slotId?: UUID;
   roomId?: UUID;
   locked?: boolean;
@@ -24,6 +25,7 @@ export interface AssignmentsQuery {
 }
 
 export interface AssignmentRequest {
+  scheduleGroupId?: UUID;
   examDate: ISODate;
   roomId: UUID;
   timeSlotId: UUID;
@@ -36,6 +38,7 @@ export interface AssignmentRequest {
 }
 
 export interface BulkAssignmentRequest {
+  scheduleGroupId?: UUID;
   examDate: ISODate;
   roomId: UUID;
   slotId: UUID;
@@ -57,6 +60,7 @@ export interface AssignmentInvigilator {
 
 export interface Assignment {
   id: UUID;
+  scheduleGroupId?: UUID;
   examDate: ISODate;
   roomId: UUID;
   roomName: string;

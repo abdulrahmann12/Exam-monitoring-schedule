@@ -50,7 +50,7 @@ export default function Timeline() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Master Timeline" subtitle="Every scheduled exam, grouped by day. Search by staff name or subject code.">
+      <AppLayout title="Master Timeline" subtitle="Scheduled exams for the selected period, grouped by day.">
         <LoadingState title="Loading timeline..." description="Fetching saved schedule data from the backend." />
       </AppLayout>
     );
@@ -58,14 +58,14 @@ export default function Timeline() {
 
   if (error) {
     return (
-      <AppLayout title="Master Timeline" subtitle="Every scheduled exam, grouped by day. Search by staff name or subject code.">
+      <AppLayout title="Master Timeline" subtitle="Scheduled exams for the selected period, grouped by day.">
         <ErrorState description={getErrorMessage(error)} />
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout title="Master Timeline" subtitle="Every scheduled exam, grouped by day. Search by staff name or subject code." actions={<Button className="gap-2 shadow-elevated" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button>}>
+    <AppLayout title="Master Timeline" subtitle="Scheduled exams for the selected period, grouped by day." actions={<Button className="gap-2 shadow-elevated" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button>}>
       <div className="space-y-5">
         <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search staff, subject code, room, or day..." className="pl-9 bg-card" /></div>
         {grouped.length === 0 ? <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 text-center"><CalendarRange className="h-10 w-10 mx-auto text-muted-foreground mb-3" /><h3 className="text-display text-lg font-semibold">No exams scheduled yet</h3><p className="text-sm text-muted-foreground mt-1">Generate a schedule to see it here.</p></div> : (

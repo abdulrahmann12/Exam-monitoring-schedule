@@ -14,6 +14,18 @@ export interface ExportContext {
 
 const timeLabel = (slot?: Slot) => slot ? `${slot.startTime} – ${slot.endTime}` : "—";
 
+const compareScheduleEntries = (left: ScheduleEntry, right: ScheduleEntry, slotMap: Map<string, Slot>) => {
+  const leftSlot = slotMap.get(left.slotId);
+  const rightSlot = slotMap.get(right.slotId);
+  return left.date.localeCompare(right.date)
+    || (leftSlot?.startTime ?? "").localeCompare(rightSlot?.startTime ?? "")
+    || (leftSlot?.endTime ?? "").localeCompare(rightSlot?.endTime ?? "")
+    || left.slotId.localeCompare(right.slotId);
+};
+
+const compareAssignmentsByRoom = (leftRoom?: Room, rightRoom?: Room) =>
+  (leftRoom?.name ?? "").localeCompare(rightRoom?.name ?? "");
+
 const subjectFor = (a: { subjectName?: string; subjectCode?: string }, slot?: Slot) => ({
   name: a.subjectName ?? slot?.subjectName ?? "—",
   code: a.subjectCode ?? slot?.subjectCode ?? "",
@@ -99,12 +111,14 @@ export function exportPdf(ctx: ExportContext, opts: { mode: "single" | "full"; d
     : [...new Set(schedule.map((e) => e.date))].sort();
   let firstPage = true;
   for (const d of datesToExport) {
-    const entries = schedule.filter((e) => e.date === d).sort((a, b) => a.slotId.localeCompare(b.slotId));
+    const entries = schedule.filter((e) => e.date === d).sort((a, b) => compareScheduleEntries(a, b, slotMap));
     if (entries.length === 0) continue;
     if (!firstPage) doc.addPage();
     firstPage = false;
     drawHeader(`${entries[0].day}, ${d}`);
-    const rows = entries.flatMap((e) => e.assignments.map((a) => {
+    const rows = entries.flatMap((e) => [...e.assignments]
+      .sort((left, right) => compareAssignmentsByRoom(roomMap.get(left.roomId), roomMap.get(right.roomId)))
+      .map((a) => {
       const slot = slotMap.get(e.slotId); const room = roomMap.get(a.roomId);
       const subj = subjectFor(a, slot);
       const chief = a.chiefInvigilatorId ? staffMap.get(a.chiefInvigilatorId)?.name ?? "—" : "— UNASSIGNED —";
@@ -148,7 +162,7 @@ export function exportXlsx(ctx: ExportContext, opts: { mode: "single" | "full"; 
   const filtered = opts.mode === "single"
     ? schedule.filter((e) => e.date === opts.date)
     : schedule;
-  const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date) || a.slotId.localeCompare(b.slotId));
+  const sorted = [...filtered].sort((a, b) => compareScheduleEntries(a, b, slotMap));
 
   const scheduleRows: (string | number)[][] = [
     ["Day", "Date", "Time", "Room", "Subject", "Code", "Chief Invigilator", "Invigilators"],

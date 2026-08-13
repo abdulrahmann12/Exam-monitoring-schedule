@@ -15,10 +15,11 @@ import type {
 } from "@/api";
 import { queryKeys } from "@/hooks/queryKeys";
 import { assignmentsService, peopleService, roomsService, timeSlotsService } from "@/services";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
-import { validateAssignment, validateSlotAssignments } from "./constraintEngine";
+import { overlappingAssignmentsForSlot, validateAssignment, validateSlotAssignments } from "./constraintEngine";
 import { generateSchedule } from "./engine";
 import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, Room, ScheduleEntry, Slot, Staff } from "./types";
 
@@ -117,11 +118,12 @@ function useAllPagesQuery<TItem, TParams extends PaginatedQueryParams>(
   queryKey: readonly unknown[],
   params: TParams,
   fetchPage: (params: TParams) => Promise<NormalizedPaginatedResponse<TItem>>,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...queryKey, "all-pages", params],
     queryFn: async () => fetchAllPaginatedItems(params, fetchPage),
-    placeholderData: (previousData) => previousData,
+    enabled,
     refetchOnWindowFocus: true,
   });
 }
@@ -323,8 +325,13 @@ function normalizeText(value?: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
-function toBulkAssignmentRequest(date: string, assignment: Assignment): BulkAssignmentRequest {
+function toBulkAssignmentRequest(
+  date: string,
+  assignment: Assignment,
+  scheduleGroupId?: string,
+): BulkAssignmentRequest {
   return {
+    scheduleGroupId,
     examDate: date,
     roomId: assignment.roomId,
     slotId: assignment.slotId,
@@ -392,9 +399,24 @@ function entryKey(date: string, slotId: string): string {
 
 export function UniGuardProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const { activeGroupId, error: groupError } = useScheduleGroup();
+  const slotQueryParams = {
+    ...SLOT_QUERY_PARAMS,
+    scheduleGroupId: activeGroupId ?? undefined,
+  } satisfies TimeSlotsQuery;
+  const assignmentQueryParams = {
+    ...ASSIGNMENTS_QUERY_PARAMS,
+    scheduleGroupId: activeGroupId ?? undefined,
+  } satisfies AssignmentsQuery;
+  const hasActiveGroup = Boolean(activeGroupId);
+
+  const peopleQueryParams = {
+    ...PEOPLE_QUERY_PARAMS,
+    scheduleGroupId: activeGroupId ?? undefined,
+  } satisfies PeopleQuery;
   const peopleQuery = useAllPagesQuery(
     queryKeys.people.all,
-    PEOPLE_QUERY_PARAMS satisfies PeopleQuery,
+    peopleQueryParams,
     async (params) => unwrapServiceResponse(await peopleService.getPeople(params)),
   );
   const roomsQuery = useAllPagesQuery(
@@ -404,13 +426,15 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   );
   const timeSlotsQuery = useAllPagesQuery(
     queryKeys.timeSlots.all,
-    SLOT_QUERY_PARAMS satisfies TimeSlotsQuery,
+    slotQueryParams,
     async (params) => unwrapServiceResponse(await timeSlotsService.getTimeSlots(params)),
+    hasActiveGroup,
   );
   const assignmentsQuery = useAllPagesQuery(
     queryKeys.assignments.all,
-    ASSIGNMENTS_QUERY_PARAMS satisfies AssignmentsQuery,
+    assignmentQueryParams,
     async (params) => unwrapServiceResponse(await assignmentsService.getAssignments(params)),
+    hasActiveGroup,
   );
 
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -424,12 +448,22 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   const scheduleInitializedRef = useRef(false);
 
   const isLoading = Boolean(
-    (peopleQuery.isLoading && !peopleQuery.data)
+    (!hasActiveGroup && !groupError)
+    || (peopleQuery.isLoading && !peopleQuery.data)
     || (roomsQuery.isLoading && !roomsQuery.data)
     || (timeSlotsQuery.isLoading && !timeSlotsQuery.data)
     || (assignmentsQuery.isLoading && !assignmentsQuery.data),
   );
-  const error = peopleQuery.error ?? roomsQuery.error ?? timeSlotsQuery.error ?? assignmentsQuery.error;
+  const error = groupError ?? peopleQuery.error ?? roomsQuery.error ?? timeSlotsQuery.error ?? assignmentsQuery.error;
+
+  useEffect(() => {
+    scheduleInitializedRef.current = false;
+    persistedAssignmentsRef.current = [];
+    setSchedule([]);
+    setHistory([]);
+    setDirtyEntryKeys([]);
+    setSlots([]);
+  }, [activeGroupId]);
 
   useEffect(() => {
     if (!assignmentsQuery.data) {
@@ -515,7 +549,8 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
 
       const savedAssignments = unwrapServiceResponse(
         await assignmentsService.saveAssignmentsBulk(
-          currentEntry.assignments.map((assignment) => toBulkAssignmentRequest(date, assignment)),
+          currentEntry.assignments.map((assignment) =>
+            toBulkAssignmentRequest(date, assignment, activeGroupId ?? undefined)),
         ),
       );
 
@@ -567,7 +602,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsPersisting(false);
     }
-  }, [getEntry, queryClient, rooms, syncDirtyEntry]);
+  }, [activeGroupId, getEntry, queryClient, rooms, syncDirtyEntry]);
 
   const persistSlotPatch = useCallback(async (slotId: string, patch: Partial<Omit<Slot, "id">>) => {
     const currentSlot = slots.find((slot) => slot.id === slotId);
@@ -579,6 +614,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       setIsPersisting(true);
 
       await unwrapServiceResponse(await timeSlotsService.updateTimeSlot(slotId, {
+        scheduleGroupId: activeGroupId ?? undefined,
         label: currentSlot.label,
         startTime: normalizeTimeValue((patch.startTime ?? currentSlot.startTime) as string),
         endTime: normalizeTimeValue((patch.endTime ?? currentSlot.endTime) as string),
@@ -591,7 +627,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsPersisting(false);
     }
-  }, [queryClient, slots]);
+  }, [activeGroupId, queryClient, slots]);
 
   const applySchedule = useCallback((
     updater: (prev: ScheduleEntry[]) => ScheduleEntry[],
@@ -619,6 +655,11 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     const currentEntry = getEntry(date, slotId);
     const existing = currentEntry?.assignments ?? [];
     const slot = slots.find((s) => s.id === slotId);
+    const overlappingAssignments = overlappingAssignmentsForSlot(
+      schedule.filter((entry) => entry.date === date && entry.slotId !== slotId).flatMap((entry) => entry.assignments),
+      slots,
+      slotId,
+    );
     const { assignments, conflicts } = generateSchedule({
       roomIds,
       rooms,
@@ -626,6 +667,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       day,
       slotId,
       existing: partial ? existing : [],
+      overlappingAssignments,
       defaultSubject: { subjectName: slot?.subjectName, subjectCode: slot?.subjectCode },
       regenerateUnlocked: !!partial,
     });
@@ -654,7 +696,18 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       invigilatorIds[index] = staffId;
       return { ...a, invigilatorIds };
     });
-    const validation = validateSlotAssignments({ assignments: candidateAssignments, rooms, staff, day: entry.day });
+    const overlappingAssignments = overlappingAssignmentsForSlot(
+      schedule.filter((item) => item.date === date && item.slotId !== slotId).flatMap((item) => item.assignments),
+      slots,
+      slotId,
+    );
+    const validation = validateSlotAssignments({
+      assignments: candidateAssignments,
+      rooms,
+      staff,
+      day: entry.day,
+      overlappingAssignments,
+    });
     const blockingIssue = validation.issues.find((issue) => staffId && issue.staffId === staffId && issue.type !== "capacity");
     if (blockingIssue) return { ok: false, message: blockingIssue.message };
     applySchedule((prev) => prev.map((e) => e.date === date && e.slotId === slotId ? { ...e, assignments: withSharedFlags(candidateAssignments) } : e), { date, slotId });
@@ -731,8 +784,26 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     setSlots((prev) => prev.map((slot) => slot.id === slotId ? { ...slot, ...patch } : slot));
     void persistSlotPatch(slotId, patch);
   };
-  const validateEntry: Ctx["validateEntry"] = (entry) => validateSlotAssignments({ assignments: entry.assignments, rooms, staff, day: entry.day });
-  const validateOne: Ctx["validateOne"] = (entry, assignment) => validateAssignment(assignment, entry.assignments, rooms, staff, entry.day);
+  const overlappingForEntry = (entry: ScheduleEntry) => overlappingAssignmentsForSlot(
+    schedule.filter((item) => item.date === entry.date && item.slotId !== entry.slotId).flatMap((item) => item.assignments),
+    slots,
+    entry.slotId,
+  );
+  const validateEntry: Ctx["validateEntry"] = (entry) => validateSlotAssignments({
+    assignments: entry.assignments,
+    rooms,
+    staff,
+    day: entry.day,
+    overlappingAssignments: overlappingForEntry(entry),
+  });
+  const validateOne: Ctx["validateOne"] = (entry, assignment) => validateAssignment(
+    assignment,
+    entry.assignments,
+    rooms,
+    staff,
+    entry.day,
+    overlappingForEntry(entry),
+  );
   const setStaffWorkingDays: Ctx["setStaffWorkingDays"] = (id, days) => setStaff((prev) => prev.map((s) => s.id === id ? { ...s, workingDays: days } : s));
   const addStaff: Ctx["addStaff"] = (s) => setStaff((prev) => [...prev, { ...s, id: `${s.role === "CHIEF_INVIGILATOR" ? "C" : "I"}${Date.now()}`, totalAssignments: 0 }]);
   const removeStaff: Ctx["removeStaff"] = (id) => setStaff((prev) => prev.filter((s) => s.id !== id));

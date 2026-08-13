@@ -8,6 +8,7 @@ interface GenerateInput {
   day: Day;
   slotId: string;
   existing?: Assignment[];
+  overlappingAssignments?: Assignment[];
   defaultSubject?: { subjectName?: string; subjectCode?: string };
   regenerateUnlocked?: boolean;
 }
@@ -23,7 +24,7 @@ const cloneAssignment = (assignment: Assignment): Assignment => ({
   invigilatorIds: [...assignment.invigilatorIds],
 });
 
-export function generateSchedule({ roomIds, rooms, staff, day, slotId, existing = [], defaultSubject, regenerateUnlocked = false }: GenerateInput): GenerateResult {
+export function generateSchedule({ roomIds, rooms, staff, day, slotId, existing = [], overlappingAssignments = [], defaultSubject, regenerateUnlocked = false }: GenerateInput): GenerateResult {
   const roomMap = new Map(rooms.map((room) => [room.id, room]));
   const selectedRoomIds = new Set(roomIds);
   const existingByRoom = new Map(existing.map((assignment) => [assignment.roomId, assignment]));
@@ -38,6 +39,7 @@ export function generateSchedule({ roomIds, rooms, staff, day, slotId, existing 
     if (assignment.chiefInvigilatorId) chiefRoomCount.set(assignment.chiefInvigilatorId, (chiefRoomCount.get(assignment.chiefInvigilatorId) ?? 0) + 1);
     assignment.invigilatorIds.forEach((id) => id && usedInvigilators.add(id));
   };
+  overlappingAssignments.forEach(seedUsage);
   preservedAssignments.forEach(seedUsage);
 
   const byFairLoad = (a: Staff, b: Staff) => (a.totalAssignments + (delta.get(a.id) ?? 0)) - (b.totalAssignments + (delta.get(b.id) ?? 0)) || a.name.localeCompare(b.name);
@@ -80,7 +82,13 @@ export function generateSchedule({ roomIds, rooms, staff, day, slotId, existing 
       next.invigilatorIds.push(...Array.from({ length: room.minInvigilators - next.invigilatorIds.length }, () => null));
     }
 
-    const preValidation = validateSlotAssignments({ assignments: [...assignments, next], rooms, staff, day });
+    const preValidation = validateSlotAssignments({
+      assignments: [...assignments, next],
+      rooms,
+      staff,
+      day,
+      overlappingAssignments,
+    });
     const chiefInvalid = !next.chiefInvigilatorId || preValidation.issues.some((issue) => issue.staffId === next.chiefInvigilatorId);
     if (chiefInvalid) {
       const chief = availableChiefs()[0] ?? null;
@@ -121,7 +129,7 @@ export function generateSchedule({ roomIds, rooms, staff, day, slotId, existing 
     sharedChief: !!(assignment.chiefInvigilatorId && sharedChiefs.has(assignment.chiefInvigilatorId)),
   }));
 
-  const validation = validateSlotAssignments({ assignments: finalAssignments, rooms, staff, day });
+  const validation = validateSlotAssignments({ assignments: finalAssignments, rooms, staff, day, overlappingAssignments });
   validation.issues.forEach((issue) => conflicts.push(issue.message));
 
   const staffUpdates: Record<string, number> = {};

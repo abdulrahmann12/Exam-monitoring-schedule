@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { TimeSlotRequest, TimeSlotsQuery, UUID } from "@/api";
 import { timeSlotsService } from "@/services";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
@@ -16,17 +17,29 @@ const defaultTimeSlotParams: TimeSlotsQuery = {
 
 const TIME_SLOTS_ENDPOINT = "/api/slots";
 
+function useScopedTimeSlotParams(params: TimeSlotsQuery = defaultTimeSlotParams): TimeSlotsQuery {
+  const { activeGroupId } = useScheduleGroup();
+  return {
+    ...defaultTimeSlotParams,
+    ...params,
+    scheduleGroupId: params.scheduleGroupId ?? activeGroupId ?? undefined,
+  };
+}
+
 export function useTimeSlotsQuery(params: TimeSlotsQuery = defaultTimeSlotParams) {
+  const scopedParams = useScopedTimeSlotParams(params);
+
   return useQuery({
-    queryKey: queryKeys.timeSlots.list(params),
-    queryFn: async () => unwrapServiceResponse(await timeSlotsService.getTimeSlots(params)),
-    placeholderData: (previousData) => previousData,
+    queryKey: queryKeys.timeSlots.list(scopedParams),
+    queryFn: async () => unwrapServiceResponse(await timeSlotsService.getTimeSlots(scopedParams)),
+    enabled: Boolean(scopedParams.scheduleGroupId),
     refetchOnWindowFocus: true,
   });
 }
 
 export function useCreateTimeSlotMutation() {
   const queryClient = useQueryClient();
+  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: (payload: TimeSlotRequest) => ({
@@ -35,7 +48,10 @@ export function useCreateTimeSlotMutation() {
       url: TIME_SLOTS_ENDPOINT,
     }),
     mutationFn: async (payload: TimeSlotRequest) =>
-      unwrapServiceResponse(await timeSlotsService.createTimeSlot(payload)),
+      unwrapServiceResponse(await timeSlotsService.createTimeSlot({
+        ...payload,
+        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
@@ -45,6 +61,7 @@ export function useCreateTimeSlotMutation() {
 
 export function useUpdateTimeSlotMutation() {
   const queryClient = useQueryClient();
+  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: ({ id, payload }: { id: UUID; payload: TimeSlotRequest }) => ({
@@ -54,7 +71,10 @@ export function useUpdateTimeSlotMutation() {
       url: `${TIME_SLOTS_ENDPOINT}/${id}`,
     }),
     mutationFn: async ({ id, payload }: { id: UUID; payload: TimeSlotRequest }) =>
-      unwrapServiceResponse(await timeSlotsService.updateTimeSlot(id, payload)),
+      unwrapServiceResponse(await timeSlotsService.updateTimeSlot(id, {
+        ...payload,
+        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });

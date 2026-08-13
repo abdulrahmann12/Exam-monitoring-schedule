@@ -3,6 +3,7 @@ import { useUniGuard } from "@/lib/uniguard/store";
 import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateCcw, Undo2, CheckCircle2, Clock3, BookOpen, DoorOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { overlappingAssignmentsForSlot } from "@/lib/uniguard/constraintEngine";
 import { AssignmentState, dayOfDate, roleLabelAr } from "@/lib/uniguard/types";
 import { StaffPicker } from "./StaffPicker";
 import { StaffProfileDialog } from "./StaffProfileDialog";
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function ScheduleGrid({ date, slotId }: Props) {
-  const { getEntry, rooms, staff, slots, manualAssign, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot } = useUniGuard();
+  const { getEntry, rooms, staff, slots, schedule, manualAssign, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot } = useUniGuard();
   const entry = getEntry(date, slotId);
   const slot = slots.find((s) => s.id === slotId);
   const day = dayOfDate(date);
@@ -27,6 +28,10 @@ export function ScheduleGrid({ date, slotId }: Props) {
   const usedRoomIds = useMemo(() => new Set(entry?.assignments.map((a) => a.roomId) ?? []), [entry]);
   const availableRooms = useMemo(() => rooms.filter((r) => !usedRoomIds.has(r.id)), [rooms, usedRoomIds]);
   const avgLoad = useMemo(() => staff.reduce((sum, person) => sum + person.totalAssignments, 0) / Math.max(1, staff.length), [staff]);
+  const pickerAssignments = useMemo(
+    () => overlappingAssignmentsForSlot(schedule.filter((item) => item.date === date).flatMap((item) => item.assignments), slots, slotId),
+    [date, schedule, slotId, slots],
+  );
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -139,7 +144,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                         avgLoad={avgLoad}
                         missing={!chief}
                         onProfile={() => chief && setProfileId(chief.id)}
-                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} slotAssignments={entry.assignments} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
+                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} slotAssignments={pickerAssignments} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
                       />
                     </div>
 
@@ -163,7 +168,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                                   avgLoad={avgLoad}
                                   missing={!person && index < room.minInvigilators}
                                   onProfile={() => person && setProfileId(person.id)}
-                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} slotAssignments={entry.assignments} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
+                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} slotAssignments={pickerAssignments} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
                                   leading={person ? <GripVertical className="h-3.5 w-3.5 text-invigilator/50 shrink-0" /> : null}
                                   trailing={
                                     <button

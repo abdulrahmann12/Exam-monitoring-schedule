@@ -1,4 +1,4 @@
-import { Assignment, AssignmentState, Day, Role, Room, Staff } from "./types";
+import { Assignment, AssignmentState, Day, Role, Room, Slot, Staff } from "./types";
 
 export interface ValidationIssue {
   type: "availability" | "concurrency" | "capacity" | "role";
@@ -13,6 +13,28 @@ export interface AssignmentValidation {
   tracker: Map<string, number>;
 }
 
+export function slotsOverlap(
+  left?: { startTime: string; endTime: string } | null,
+  right?: { startTime: string; endTime: string } | null,
+): boolean {
+  if (!left || !right) {
+    return false;
+  }
+  return left.startTime < right.endTime && left.endTime > right.startTime;
+}
+
+export function overlappingAssignmentsForSlot(assignments: Assignment[], slots: Slot[], slotId: string): Assignment[] {
+  const target = slots.find((slot) => slot.id === slotId);
+  if (!target) {
+    return assignments.filter((assignment) => assignment.slotId === slotId);
+  }
+  const slotById = new Map(slots.map((slot) => [slot.id, slot]));
+  return assignments.filter((assignment) => {
+    const slot = slotById.get(assignment.slotId);
+    return slot ? slotsOverlap(target, slot) : assignment.slotId === slotId;
+  });
+}
+
 export function buildAssignmentTracker(assignments: Assignment[]) {
   const tracker = new Map<string, number>();
   for (const assignment of assignments) {
@@ -22,10 +44,17 @@ export function buildAssignmentTracker(assignments: Assignment[]) {
   return tracker;
 }
 
-export function validateSlotAssignments(opts: { assignments: Assignment[]; rooms: Room[]; staff: Staff[]; day: Day }): AssignmentValidation {
-  const { assignments, rooms, staff, day } = opts;
+export function validateSlotAssignments(opts: {
+  assignments: Assignment[];
+  rooms: Room[];
+  staff: Staff[];
+  day: Day;
+  overlappingAssignments?: Assignment[];
+}): AssignmentValidation {
+  const { assignments, rooms, staff, day, overlappingAssignments = [] } = opts;
   const roomMap = new Map(rooms.map((room) => [room.id, room]));
   const staffMap = new Map(staff.map((person) => [person.id, person]));
+  const concurrencyAssignments = [...overlappingAssignments, ...assignments];
   const chiefCounts = new Map<string, number>();
   const invigilatorCounts = new Map<string, number>();
   const issues: ValidationIssue[] = [];
@@ -38,6 +67,9 @@ export function validateSlotAssignments(opts: { assignments: Assignment[]; rooms
     if (filledInvigilators < room.minInvigilators) {
       issues.push({ type: "capacity", roomId: assignment.roomId, message: `${room.name} needs ${room.minInvigilators} Invigilator${room.minInvigilators > 1 ? "s" : ""}.` });
     }
+  }
+
+  for (const assignment of concurrencyAssignments) {
     if (assignment.chiefInvigilatorId) chiefCounts.set(assignment.chiefInvigilatorId, (chiefCounts.get(assignment.chiefInvigilatorId) ?? 0) + 1);
     assignment.invigilatorIds.forEach((id) => id && invigilatorCounts.set(id, (invigilatorCounts.get(id) ?? 0) + 1));
   }
@@ -47,7 +79,7 @@ export function validateSlotAssignments(opts: { assignments: Assignment[]; rooms
     if (!person) continue;
     if (person.role !== "CHIEF_INVIGILATOR") issues.push({ type: "role", staffId, message: `${person.name} is not a Chief Invigilator.` });
     if (!person.workingDays.includes(day)) issues.push({ type: "availability", staffId, message: `${person.name} is unavailable on ${day}.` });
-    if (count > 2) issues.push({ type: "concurrency", staffId, message: `${person.name} exceeds the 2-room Chief Invigilator limit.` });
+    if (count > 2) issues.push({ type: "concurrency", staffId, message: `${person.name} exceeds the 2-room Chief Invigilator limit at an overlapping time.` });
   }
 
   for (const [staffId, count] of invigilatorCounts) {
@@ -55,19 +87,26 @@ export function validateSlotAssignments(opts: { assignments: Assignment[]; rooms
     if (!person) continue;
     if (person.role !== "INVIGILATOR") issues.push({ type: "role", staffId, message: `${person.name} is not an Invigilator.` });
     if (!person.workingDays.includes(day)) issues.push({ type: "availability", staffId, message: `${person.name} is unavailable on ${day}.` });
-    if (count > 1) issues.push({ type: "concurrency", staffId, message: `${person.name} is already assigned in this time slot.` });
+    if (count > 1) issues.push({ type: "concurrency", staffId, message: `${person.name} is already assigned at an overlapping time.` });
   }
 
   const hasConflict = issues.some((issue) => issue.type !== "capacity");
   return {
     state: hasConflict ? "CONFLICT" : issues.length > 0 ? "INCOMPLETE" : "VALID",
     issues,
-    tracker: buildAssignmentTracker(assignments),
+    tracker: buildAssignmentTracker(concurrencyAssignments),
   };
 }
 
-export function validateAssignment(assignment: Assignment, allAssignments: Assignment[], rooms: Room[], staff: Staff[], day: Day): AssignmentValidation {
-  const slotValidation = validateSlotAssignments({ assignments: allAssignments, rooms, staff, day });
+export function validateAssignment(
+  assignment: Assignment,
+  allAssignments: Assignment[],
+  rooms: Room[],
+  staff: Staff[],
+  day: Day,
+  overlappingAssignments: Assignment[] = [],
+): AssignmentValidation {
+  const slotValidation = validateSlotAssignments({ assignments: allAssignments, rooms, staff, day, overlappingAssignments });
   const roomIssues = slotValidation.issues.filter((issue) => issue.roomId === assignment.roomId || [assignment.chiefInvigilatorId, ...assignment.invigilatorIds].some((id) => id && id === issue.staffId));
   const hasConflict = roomIssues.some((issue) => issue.type !== "capacity");
   return { state: hasConflict ? "CONFLICT" : roomIssues.length > 0 ? "INCOMPLETE" : "VALID", issues: roomIssues, tracker: slotValidation.tracker };
@@ -96,9 +135,9 @@ export function getPickerTiers(opts: { role: Role; day: Day; staff: Staff[]; ass
       const count = chiefCounts.get(person.id) ?? 0;
       if (count === 0) free.push(person);
       else if (count === 1) partiallyBusy.push(person);
-      else unavailable.push({ staff: person, reason: "At 2-room limit" });
+      else unavailable.push({ staff: person, reason: "At 2-room overlapping limit" });
     } else if (busyInvigilators.has(person.id)) {
-      unavailable.push({ staff: person, reason: "Busy in this slot" });
+      unavailable.push({ staff: person, reason: "Busy at an overlapping time" });
     } else {
       free.push(person);
     }

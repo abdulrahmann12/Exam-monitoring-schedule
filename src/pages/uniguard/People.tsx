@@ -85,7 +85,7 @@ export default function People() {
   return (
     <AppLayout
       title="People"
-      subtitle="Manage Chief Invigilators and Invigilators, their availability, and backend-synced workload."
+      subtitle="Manage Chief Invigilators and Invigilators. Workload counts only the selected exam period."
       actions={
         <PersonDialog
           key={editingPerson?.id ?? "new-person"}
@@ -202,7 +202,7 @@ function StaffTable({
                   </div>
                   <div>
                     <div className="font-medium">{person.name}</div>
-                    <div className="text-[11px] text-muted-foreground font-mono">{person.id}</div>
+                    <div className="text-[11px] text-muted-foreground">{person.email || "No email"}</div>
                   </div>
                 </div>
               </td>
@@ -261,6 +261,7 @@ function PersonDialog({
   const [formState, setFormState] = useState<PersonRequest>({
     name: "",
     department: "",
+    email: "",
     role: "CHIEF_INVIGILATOR",
     availableDays: DEFAULT_AVAILABLE_DAYS,
   });
@@ -271,17 +272,22 @@ function PersonDialog({
         ? {
             name: initialValue.name,
             department: initialValue.department,
+            email: initialValue.email ?? "",
             role: initialValue.role,
             availableDays: initialValue.availableDays,
           }
         : {
             name: "",
             department: "",
+            email: "",
             role: "CHIEF_INVIGILATOR",
             availableDays: DEFAULT_AVAILABLE_DAYS,
           },
     );
   }, [initialValue, open]);
+
+  const trimmedEmail = formState.email?.trim() ?? "";
+  const emailValid = trimmedEmail === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -318,13 +324,31 @@ function PersonDialog({
             <Input value={formState.department} onChange={(event) => setFormState((previous) => ({ ...previous, department: event.target.value }))} />
           </div>
           <div>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={formState.email ?? ""}
+              onChange={(event) => setFormState((previous) => ({ ...previous, email: event.target.value }))}
+              placeholder="Optional — used to send this person's schedule"
+            />
+            {!emailValid && <p className="mt-1 text-xs text-destructive">Enter a valid email, or leave this blank.</p>}
+          </div>
+          <div>
             <Label className="mb-2 block">Available days</Label>
             <DayBadges value={formState.availableDays} onChange={(nextDays) => setFormState((previous) => ({ ...previous, availableDays: nextDays as WeekDay[] }))} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button disabled={isSubmitting || !formState.name.trim() || !formState.department.trim()} onClick={() => void onSubmit({ ...formState, name: formState.name.trim(), department: formState.department.trim() })}>
+          <Button
+            disabled={isSubmitting || !formState.name.trim() || !formState.department.trim() || !emailValid}
+            onClick={() => void onSubmit({
+              ...formState,
+              name: formState.name.trim(),
+              department: formState.department.trim(),
+              email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
+            })}
+          >
             {isSubmitting ? "Saving..." : `Save ${roleLabel(formState.role as PersonRole)}`}
           </Button>
         </DialogFooter>

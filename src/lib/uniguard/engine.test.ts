@@ -79,4 +79,37 @@ describe("generateSchedule", () => {
       subjectCode: "PHY101",
     });
   });
+
+  it("does not reuse staff who are already booked in an overlapping slot", () => {
+    const overlappingAssignments: Assignment[] = [
+      {
+        roomId: "room-other-a",
+        slotId: "slot-2",
+        chiefInvigilatorId: "chief-fresh",
+        invigilatorIds: ["inv-fresh"],
+        locked: false,
+      },
+      {
+        roomId: "room-other-b",
+        slotId: "slot-2",
+        chiefInvigilatorId: "chief-fresh",
+        invigilatorIds: ["inv-stale"],
+        locked: false,
+      },
+    ];
+
+    const result = generateSchedule({
+      roomIds: ["room-b"],
+      rooms,
+      staff,
+      day: "Mon",
+      slotId: "slot-1",
+      existing: [],
+      overlappingAssignments,
+    });
+
+    expect(result.assignments[0]?.chiefInvigilatorId).not.toBe("chief-fresh");
+    expect(result.assignments[0]?.invigilatorIds).not.toContain("inv-fresh");
+    expect(result.assignments[0]?.invigilatorIds).not.toContain("inv-stale");
+  });
 });

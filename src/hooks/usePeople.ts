@@ -4,6 +4,8 @@ import type { BulkDuplicateStrategy, PeopleQuery, PersonRequest, UUID } from "@/
 import { bulkUploadService, peopleService } from "@/services";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
+import { useScheduleGroup } from "@/state/scheduleGroup";
+
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";
 
@@ -19,9 +21,16 @@ const PEOPLE_BULK_UPLOAD_ENDPOINT = "/api/bulk/persons/upload";
 const PEOPLE_TEMPLATE_ENDPOINT = "/api/bulk/persons/template";
 
 export function usePeopleQuery(params: PeopleQuery = defaultPeopleParams) {
+  const { activeGroupId } = useScheduleGroup();
+  const queryParams: PeopleQuery = {
+    ...defaultPeopleParams,
+    ...params,
+    scheduleGroupId: params.scheduleGroupId ?? activeGroupId ?? undefined,
+  };
+
   return useQuery({
-    queryKey: queryKeys.people.list(params),
-    queryFn: async () => unwrapServiceResponse(await peopleService.getPeople(params)),
+    queryKey: queryKeys.people.list(queryParams),
+    queryFn: async () => unwrapServiceResponse(await peopleService.getPeople(queryParams)),
     placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: true,
   });

@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { AssignmentRequest, AssignmentsQuery, UUID } from "@/api";
 import { assignmentsService } from "@/services";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
@@ -23,6 +24,15 @@ interface DeleteAllAssignmentsResult {
 }
 
 const ASSIGNMENTS_ENDPOINT = "/api/assignments";
+
+function useScopedAssignmentParams(params: AssignmentsQuery = defaultAssignmentsParams): AssignmentsQuery {
+  const { activeGroupId } = useScheduleGroup();
+  return {
+    ...defaultAssignmentsParams,
+    ...params,
+    scheduleGroupId: params.scheduleGroupId ?? activeGroupId ?? undefined,
+  };
+}
 
 async function fetchAllAssignments(params: AssignmentsQuery = defaultAssignmentsParams) {
   const pageSize = Math.max(1, Math.trunc(params.size ?? defaultAssignmentsParams.size ?? 100));
@@ -57,16 +67,19 @@ async function fetchAllAssignments(params: AssignmentsQuery = defaultAssignments
 }
 
 export function useAssignmentsQuery(params: AssignmentsQuery = defaultAssignmentsParams) {
+  const scopedParams = useScopedAssignmentParams(params);
+
   return useQuery({
-    queryKey: queryKeys.assignments.list(params),
-    queryFn: async () => unwrapServiceResponse(await assignmentsService.getAssignments(params)),
-    placeholderData: (previousData) => previousData,
+    queryKey: queryKeys.assignments.list(scopedParams),
+    queryFn: async () => unwrapServiceResponse(await assignmentsService.getAssignments(scopedParams)),
+    enabled: Boolean(scopedParams.scheduleGroupId),
     refetchOnWindowFocus: true,
   });
 }
 
 export function useCreateAssignmentMutation() {
   const queryClient = useQueryClient();
+  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: (payload: AssignmentRequest) => ({
@@ -75,7 +88,10 @@ export function useCreateAssignmentMutation() {
       url: ASSIGNMENTS_ENDPOINT,
     }),
     mutationFn: async (payload: AssignmentRequest) =>
-      unwrapServiceResponse(await assignmentsService.createAssignment(payload)),
+      unwrapServiceResponse(await assignmentsService.createAssignment({
+        ...payload,
+        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.people.all });
@@ -85,6 +101,7 @@ export function useCreateAssignmentMutation() {
 
 export function useUpdateAssignmentMutation() {
   const queryClient = useQueryClient();
+  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: ({ id, payload }: { id: UUID; payload: AssignmentRequest }) => ({
@@ -94,7 +111,10 @@ export function useUpdateAssignmentMutation() {
       url: `${ASSIGNMENTS_ENDPOINT}/${id}`,
     }),
     mutationFn: async ({ id, payload }: { id: UUID; payload: AssignmentRequest }) =>
-      unwrapServiceResponse(await assignmentsService.updateAssignment(id, payload)),
+      unwrapServiceResponse(await assignmentsService.updateAssignment(id, {
+        ...payload,
+        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
+      })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.people.all });
@@ -121,6 +141,7 @@ export function useDeleteAssignmentMutation() {
 
 export function useDeleteAllAssignmentsMutation() {
   const queryClient = useQueryClient();
+  const scopedParams = useScopedAssignmentParams(defaultAssignmentsParams);
 
   return useSafeMutation<DeleteAllAssignmentsResult, Error, void>({
     getFingerprint: () => ({
@@ -128,7 +149,7 @@ export function useDeleteAllAssignmentsMutation() {
       url: ASSIGNMENTS_ENDPOINT,
     }),
     mutationFn: async () => {
-      const assignments = await fetchAllAssignments(defaultAssignmentsParams);
+      const assignments = await fetchAllAssignments(scopedParams);
       let deleted = 0;
       let firstError: string | undefined;
 
