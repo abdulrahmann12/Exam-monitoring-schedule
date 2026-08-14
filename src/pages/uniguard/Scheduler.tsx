@@ -7,25 +7,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AppLayout } from "@/components/uniguard/AppLayout";
+import { BulkScheduleUploadModal } from "@/components/uniguard/BulkScheduleUploadModal";
 import { ExportDialog } from "@/components/uniguard/ExportDialog";
 import { ScheduleGrid } from "@/components/uniguard/ScheduleGrid";
 import { useUniGuard } from "@/lib/uniguard/store";
 import { dayOfDate, type Slot } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
+import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage } from "@/utils/error";
 import { format } from "date-fns";
-import { CalendarIcon, Check, FileDown, RotateCw, Save, Settings2, Sparkles } from "lucide-react";
+import { CalendarIcon, Check, FileDown, FileSpreadsheet, RotateCw, Save, Settings2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 
 const slotLabel = (s: { startTime: string; endTime: string }) => `${s.startTime} – ${s.endTime}`;
 
 export default function Scheduler() {
   const { rooms, slots, generate, getEntry, updateSlot, isLoading, error, isPersisting, isEntryDirty, saveEntry } = useUniGuard();
+  const { activeGroupId, activeGroup } = useScheduleGroup();
   const [date, setDate] = useState<Date>(new Date());
   const [slotId, setSlotId] = useState("");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+
 
   useEffect(() => {
     if (slots.length === 0) {
@@ -140,7 +146,7 @@ export default function Scheduler() {
   };
 
   return (
-    <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period." actions={<div className="flex flex-wrap gap-2"><Button variant="outline" className="gap-2" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button><Button className="gap-2" disabled={!entry || !entryDirty || isPersisting} onClick={() => void handleSave()}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save" : "Saved"}</Button></div>}>
+    <AppLayout title="Flexible Exam Resource Planner" subtitle="Allocate chiefs and invigilators for the selected exam period." actions={<div className="flex flex-wrap gap-2"><Button variant="outline" className="gap-2" disabled={!activeGroupId} onClick={() => setBulkUploadOpen(true)}><FileSpreadsheet className="h-4 w-4" /> Bulk Schedule</Button><Button variant="outline" className="gap-2" onClick={() => setExportOpen(true)}><FileDown className="h-4 w-4" /> Export PDF</Button><Button className="gap-2" disabled={!entry || !entryDirty || isPersisting} onClick={() => void handleSave()}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save" : "Saved"}</Button></div>}>
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <StepCard step={1} title="Date & time slot" done={!!date}>
@@ -161,9 +167,18 @@ export default function Scheduler() {
         <ScheduleGrid date={dateStr} slotId={activeSlotId} />
       </div>
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} defaultDate={dateStr} />
+      {activeGroupId && (
+        <BulkScheduleUploadModal
+          open={bulkUploadOpen}
+          onOpenChange={setBulkUploadOpen}
+          groupId={activeGroupId}
+          groupName={activeGroup?.name}
+        />
+      )}
     </AppLayout>
   );
 }
+
 
 function EditSlotDialog({ slot, onSave }: { slot: Slot; onSave: (patch: Partial<Omit<Slot, "id">>) => void }) {
   const [open, setOpen] = useState(false);
