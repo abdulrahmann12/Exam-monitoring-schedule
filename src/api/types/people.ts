@@ -35,3 +35,19 @@ export interface Person {
   createdAt: ISOInstant;
   updatedAt: ISOInstant;
 }
+
+/** Date-specific leave (inclusive range). */
+export interface Unavailability {
+  id: UUID;
+  personId: UUID;
+  startDate: string;
+  endDate: string;
+  reason: string | null;
+  createdAt: ISOInstant;
+}
+
+export interface UnavailabilityRequest {
+  startDate: string;
+  endDate: string;
+  reason?: string | null;
+}

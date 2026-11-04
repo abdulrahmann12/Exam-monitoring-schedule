@@ -1263,6 +1263,7 @@ function handleSettingsMutation(path: string, method: DemoMethod, data: unknown)
     universityName: payload.universityName,
     department: payload.department ?? null,
     examPeriod: payload.examPeriod,
+    maxDutiesPerDay: payload.maxDutiesPerDay ?? existing?.maxDutiesPerDay ?? 0,
   };
 
   demoRuntime.settings.value = nextSettings;

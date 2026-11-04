@@ -5,6 +5,8 @@ import type {
   Person,
   PersonRequest,
   ServiceResponse,
+  Unavailability,
+  UnavailabilityRequest,
   UUID,
 } from "../types";
 import { normalizePaginatedResponse } from "../utils/pagination";
@@ -51,9 +53,40 @@ async function deletePerson(id: UUID): Promise<ServiceResponse<null>> {
   );
 }
 
+async function getUnavailability(personId: UUID): Promise<ServiceResponse<Unavailability[]>> {
+  return performRequest<Unavailability[]>({
+    url: `${PEOPLE_ENDPOINT}/${personId}/unavailability`,
+    method: "GET",
+  });
+}
+
+async function addUnavailability(
+  personId: UUID,
+  payload: UnavailabilityRequest,
+): Promise<ServiceResponse<Unavailability>> {
+  return performRequest<Unavailability>({
+    url: `${PEOPLE_ENDPOINT}/${personId}/unavailability`,
+    method: "POST",
+    data: payload,
+  });
+}
+
+async function deleteUnavailability(personId: UUID, unavailabilityId: UUID): Promise<ServiceResponse<null>> {
+  return performRequest<unknown, null>(
+    {
+      url: `${PEOPLE_ENDPOINT}/${personId}/unavailability/${unavailabilityId}`,
+      method: "DELETE",
+    },
+    () => null,
+  );
+}
+
 export const peopleService = {
   getPeople,
   createPerson,
   updatePerson,
   deletePerson,
+  getUnavailability,
+  addUnavailability,
+  deleteUnavailability,
 };

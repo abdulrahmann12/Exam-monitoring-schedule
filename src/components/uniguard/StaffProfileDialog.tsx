@@ -4,6 +4,7 @@ import { Staff, roleLabel } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
 import { CalendarDays, MapPin, TrendingUp, AlertTriangle } from "lucide-react";
 import { DayBadges } from "./DayBadges";
+import { UnavailabilityPanel } from "./UnavailabilityPanel";
 import { useMemo } from "react";
 
 interface Props {
@@ -64,6 +65,7 @@ export function StaffProfileDialog({ staffId, open, onOpenChange }: Props) {
           <Stat icon={TrendingUp} label="Vs. team avg" value={`${avg > 0 ? Math.round((person.totalAssignments / avg) * 100) : 0}%`} />
         </div>
         <div><div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Availability</div><DayBadges value={person.workingDays} readOnly /></div>
+        <UnavailabilityPanel personId={person.id} />
         <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
           <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 sticky top-0 bg-background pb-2">Invigilation history ({assignments.length})</div>
           {assignments.length === 0 ? <div className="text-sm text-muted-foreground italic py-6 text-center">No assignments yet.</div> : (

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
 import { DayBadges } from "@/components/uniguard/DayBadges";
+import { UnavailabilityPanel } from "@/components/uniguard/UnavailabilityPanel";
 import {
     useCreatePersonMutation,
     useDeletePersonMutation,
@@ -337,6 +338,7 @@ function PersonDialog({
             <Label className="mb-2 block">Available days</Label>
             <DayBadges value={formState.availableDays} onChange={(nextDays) => setFormState((previous) => ({ ...previous, availableDays: nextDays as WeekDay[] }))} />
           </div>
+          {initialValue && <UnavailabilityPanel personId={initialValue.id} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
