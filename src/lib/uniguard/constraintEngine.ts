@@ -1,5 +1,13 @@
 import { Assignment, AssignmentState, Day, Role, Room, Slot, Staff } from "./types";
 
+/**
+ * Client-side constraint hints for instant feedback while editing a draft.
+ * The server re-checks everything on save (including other exam periods, leave and
+ * daily limits), so these checks only need to be a fast, faithful subset.
+ */
+
+const parallelLimit = (person: Staff) => person.maxParallelRooms ?? (person.role === "CHIEF_INVIGILATOR" ? 2 : 1);
+
 export interface ValidationIssue {
   type: "availability" | "concurrency" | "capacity" | "role";
   message: string;
@@ -79,7 +87,8 @@ export function validateSlotAssignments(opts: {
     if (!person) continue;
     if (person.role !== "CHIEF_INVIGILATOR") issues.push({ type: "role", staffId, message: `${person.name} is not a Chief Invigilator.` });
     if (!person.workingDays.includes(day)) issues.push({ type: "availability", staffId, message: `${person.name} is unavailable on ${day}.` });
-    if (count > 2) issues.push({ type: "concurrency", staffId, message: `${person.name} exceeds the 2-room Chief Invigilator limit at an overlapping time.` });
+    const limit = parallelLimit(person);
+    if (count > limit) issues.push({ type: "concurrency", staffId, message: `${person.name} exceeds the ${limit}-room Chief Invigilator limit at an overlapping time.` });
   }
 
   for (const [staffId, count] of invigilatorCounts) {
@@ -133,9 +142,10 @@ export function getPickerTiers(opts: { role: Role; day: Day; staff: Staff[]; ass
     }
     if (role === "CHIEF_INVIGILATOR") {
       const count = chiefCounts.get(person.id) ?? 0;
+      const limit = parallelLimit(person);
       if (count === 0) free.push(person);
-      else if (count === 1) partiallyBusy.push(person);
-      else unavailable.push({ staff: person, reason: "At 2-room overlapping limit" });
+      else if (count < limit) partiallyBusy.push(person);
+      else unavailable.push({ staff: person, reason: `At ${limit}-room overlapping limit` });
     } else if (busyInvigilators.has(person.id)) {
       unavailable.push({ staff: person, reason: "Busy at an overlapping time" });
     } else {

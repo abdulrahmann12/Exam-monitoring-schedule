@@ -20,7 +20,6 @@ import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
 import { overlappingAssignmentsForSlot, validateAssignment, validateSlotAssignments } from "./constraintEngine";
-import { generateSchedule } from "./engine";
 import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, Room, ScheduleEntry, Slot, Staff } from "./types";
 
 const MAX_BACKEND_PAGE_SIZE = 100;
@@ -135,15 +134,17 @@ interface Ctx {
   schedule: ScheduleEntry[];
   isLoading: boolean;
   isPersisting: boolean;
+  isGenerating: boolean;
   error: unknown;
   isEntryDirty: (date: string, slotId: string) => boolean;
   setStaffWorkingDays: (id: string, days: Day[]) => void;
-  addStaff: (s: Omit<Staff, "id" | "totalAssignments">) => void;
+  addStaff: (s: Omit<Staff, "id" | "totalAssignments" | "maxParallelRooms">) => void;
   removeStaff: (id: string) => void;
   addRoom: (r: Omit<Room, "id" | "minInvigilators"> & { minInvigilators?: number }) => void;
   removeRoom: (id: string) => void;
   updateSlot: (slotId: string, patch: Partial<Omit<Slot, "id">>) => void;
-  generate: (opts: { date: string; slotId: string; roomIds: string[]; partial?: boolean }) => { conflicts: string[] };
+  /** Asks the server's scheduling engine for a draft of one slot. Nothing is saved until saveEntry(). */
+  generate: (opts: { date: string; slotId: string; roomIds: string[]; partial?: boolean }) => Promise<{ ok: boolean; conflicts: string[] }>;
   toggleLock: (date: string, slotId: string, roomId: string) => void;
   manualAssign: (date: string, slotId: string, roomId: string, kind: "chief" | "invigilator", index: number, staffId: string | null) => { ok: boolean; message?: string };
   addInvigilatorSlot: (date: string, slotId: string, roomId: string) => void;
@@ -192,25 +193,6 @@ function cloneSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
   return entries.map(cloneEntry);
 }
 
-function mergeAssignmentsForPartialRegeneration(existing: Assignment[], generated: Assignment[]): Assignment[] {
-  const generatedByRoom = new Map(generated.map((assignment) => [assignment.roomId, cloneAssignment(assignment)]));
-  const merged = existing.map((assignment) => generatedByRoom.get(assignment.roomId) ?? cloneAssignment(assignment));
-
-  generated.forEach((assignment) => {
-    if (!generatedByRoom.has(assignment.roomId)) {
-      return;
-    }
-
-    if (existing.some((currentAssignment) => currentAssignment.roomId === assignment.roomId)) {
-      return;
-    }
-
-    merged.push(cloneAssignment(assignment));
-  });
-
-  return merged;
-}
-
 function withSharedFlags(assignments: Assignment[]): Assignment[] {
   const counts = new Map<string, number>();
 
@@ -236,6 +218,7 @@ function toStaff(person: Person): Staff {
     department: person.department,
     workingDays: person.availableDays,
     totalAssignments: person.totalAssignments,
+    maxParallelRooms: person.maxParallelRooms,
   };
 }
 
@@ -444,6 +427,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<ScheduleEntry[][]>([]);
   const [dirtyEntryKeys, setDirtyEntryKeys] = useState<string[]>([]);
   const [isPersisting, setIsPersisting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const persistedAssignmentsRef = useRef<ApiAssignment[]>([]);
   const scheduleInitializedRef = useRef(false);
 
@@ -650,36 +634,51 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     }
   }, [pushHistory, recomputeStaffCounts, syncDirtyEntry]);
 
-  const generate: Ctx["generate"] = ({ date, slotId, roomIds, partial }) => {
+  const generate: Ctx["generate"] = async ({ date, slotId, roomIds, partial }) => {
     const day = dayOfDate(date);
-    const currentEntry = getEntry(date, slotId);
-    const existing = currentEntry?.assignments ?? [];
-    const slot = slots.find((s) => s.id === slotId);
-    const overlappingAssignments = overlappingAssignmentsForSlot(
-      schedule.filter((entry) => entry.date === date && entry.slotId !== slotId).flatMap((entry) => entry.assignments),
-      slots,
-      slotId,
-    );
-    const { assignments, conflicts } = generateSchedule({
-      roomIds,
-      rooms,
-      staff,
-      day,
-      slotId,
-      existing: partial ? existing : [],
-      overlappingAssignments,
-      defaultSubject: { subjectName: slot?.subjectName, subjectCode: slot?.subjectCode },
-      regenerateUnlocked: !!partial,
-    });
-    const nextAssignments = partial
-      ? withSharedFlags(mergeAssignmentsForPartialRegeneration(existing, assignments))
-      : assignments.map(cloneAssignment);
-    applySchedule((prev) => {
-      const filtered = prev.filter((e) => !(e.date === date && e.slotId === slotId));
-      const generatedSnapshot = nextAssignments.map(cloneAssignment);
-      return [...filtered, { date, slotId, day, assignments: nextAssignments, lastGeneratedAssignments: generatedSnapshot }];
-    }, { date, slotId });
-    return { conflicts };
+    const existing = getEntry(date, slotId)?.assignments ?? [];
+
+    try {
+      setIsGenerating(true);
+      const preview = unwrapServiceResponse(await assignmentsService.generatePreview({
+        scheduleGroupId: activeGroupId ?? undefined,
+        examDate: date,
+        slotId,
+        roomIds,
+        regenerateUnlocked: Boolean(partial),
+        current: existing.map((assignment) => ({
+          roomId: assignment.roomId,
+          chiefInvigilatorId: assignment.chiefInvigilatorId,
+          invigilatorIds: assignment.invigilatorIds,
+          locked: assignment.locked,
+          subjectName: normalizeText(assignment.subjectName),
+          subjectCode: normalizeText(assignment.subjectCode),
+        })),
+      }));
+
+      const nextAssignments = withSharedFlags(preview.assignments.map((assignment) => ({
+        roomId: assignment.roomId,
+        slotId,
+        chiefInvigilatorId: assignment.chiefInvigilatorId,
+        invigilatorIds: [...assignment.invigilatorIds],
+        locked: assignment.locked,
+        subjectName: assignment.subjectName ?? undefined,
+        subjectCode: assignment.subjectCode ?? undefined,
+      })));
+
+      applySchedule((prev) => {
+        const filtered = prev.filter((e) => !(e.date === date && e.slotId === slotId));
+        const generatedSnapshot = nextAssignments.map(cloneAssignment);
+        return [...filtered, { date, slotId, day, assignments: nextAssignments, lastGeneratedAssignments: generatedSnapshot }];
+      }, { date, slotId });
+
+      return { ok: true, conflicts: preview.conflicts };
+    } catch (errorValue) {
+      showErrorToast(errorValue, { title: "Could not generate the schedule." });
+      return { ok: false, conflicts: [] };
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const toggleLock: Ctx["toggleLock"] = (date, slotId, roomId) => {
@@ -805,13 +804,13 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     overlappingForEntry(entry),
   );
   const setStaffWorkingDays: Ctx["setStaffWorkingDays"] = (id, days) => setStaff((prev) => prev.map((s) => s.id === id ? { ...s, workingDays: days } : s));
-  const addStaff: Ctx["addStaff"] = (s) => setStaff((prev) => [...prev, { ...s, id: `${s.role === "CHIEF_INVIGILATOR" ? "C" : "I"}${Date.now()}`, totalAssignments: 0 }]);
+  const addStaff: Ctx["addStaff"] = (s) => setStaff((prev) => [...prev, { ...s, id: `${s.role === "CHIEF_INVIGILATOR" ? "C" : "I"}${Date.now()}`, totalAssignments: 0, maxParallelRooms: s.role === "CHIEF_INVIGILATOR" ? 2 : 1 }]);
   const removeStaff: Ctx["removeStaff"] = (id) => setStaff((prev) => prev.filter((s) => s.id !== id));
   const addRoom: Ctx["addRoom"] = (r) => setRooms((prev) => [...prev, { ...r, id: `R${Date.now()}`, minInvigilators: r.minInvigilators ?? minInvigilatorsForCapacity(r.capacity) }]);
   const removeRoom: Ctx["removeRoom"] = (id) => setRooms((prev) => prev.filter((r) => r.id !== id));
 
   const value = useMemo<Ctx>(() => ({
-    staff, rooms, slots, schedule, isLoading, isPersisting, error, isEntryDirty, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign,
+    staff, rooms, slots, schedule, isLoading, isPersisting, isGenerating, error, isEntryDirty, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign,
     addInvigilatorSlot, removeInvigilatorSlot, updateAssignmentSubject, addRoomToSlot, swapInvigilators, saveEntry, undoLastChange, resetSlotToGenerated, getEntry, validateEntry, validateOne,
   }), [
     addInvigilatorSlot,
@@ -823,6 +822,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     getEntry,
     isLoading,
     isEntryDirty,
+    isGenerating,
     isPersisting,
     manualAssign,
     removeInvigilatorSlot,

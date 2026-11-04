@@ -24,7 +24,7 @@ import { toast } from "sonner";
 const slotLabel = (s: { startTime: string; endTime: string }) => `${s.startTime} – ${s.endTime}`;
 
 export default function Scheduler() {
-  const { rooms, slots, generate, getEntry, updateSlot, isLoading, error, isPersisting, isEntryDirty, saveEntry } = useUniGuard();
+  const { rooms, slots, generate, getEntry, updateSlot, isLoading, error, isPersisting, isGenerating, isEntryDirty, saveEntry } = useUniGuard();
   const { activeGroupId, activeGroup } = useScheduleGroup();
   const [date, setDate] = useState<Date>(new Date());
   const [slotId, setSlotId] = useState("");
@@ -138,11 +138,12 @@ export default function Scheduler() {
   }
 
   const toggleRoom = (id: string) => setSelectedRooms((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const onAssign = (partial: boolean) => {
+  const onAssign = async (partial: boolean) => {
     if (selectedRooms.length === 0) return toast.error("Select at least one room first");
-    const { conflicts } = generate({ date: dateStr, slotId: activeSlotId, roomIds: selectedRooms, partial });
-    if (conflicts.length === 0) toast.success(partial ? "Schedule regenerated locally" : "Schedule generated locally", { description: `${selectedRooms.length} rooms ready to review and save.` });
-    else toast.warning(`${conflicts.length} issues detected`, { description: "Review highlighted rows, then save when ready." });
+    const { ok, conflicts } = await generate({ date: dateStr, slotId: activeSlotId, roomIds: selectedRooms, partial });
+    if (!ok) return;
+    if (conflicts.length === 0) toast.success(partial ? "Schedule regenerated" : "Schedule generated", { description: `${selectedRooms.length} rooms ready to review and save. Locked rooms were kept.` });
+    else toast.warning(`${conflicts.length} issues detected`, { description: conflicts.slice(0, 3).join(" ") });
   };
 
   return (
@@ -161,7 +162,7 @@ export default function Scheduler() {
             <div className="text-xs text-muted-foreground mt-3">{selectedRooms.length} of {rooms.length} selected</div>
           </StepCard>
           <StepCard step={3} title="Auto-assign" done={!!entry}>
-            <div className="space-y-2"><Button onClick={() => onAssign(false)} className="w-full gap-2 shadow-elevated"><Sparkles className="h-4 w-4" /> Generate schedule</Button><Button onClick={() => onAssign(true)} variant="outline" className="w-full gap-2" disabled={!entry}><RotateCw className="h-4 w-4" /> Regenerate unlocked</Button><Button onClick={() => void handleSave()} variant="outline" className="w-full gap-2" disabled={!entry || !entryDirty || isPersisting}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save current slot" : "All changes saved"}</Button><p className="text-[11px] text-muted-foreground leading-relaxed">Generate locally, adjust manually, then save the final slot snapshot in one request.</p></div>
+            <div className="space-y-2"><Button onClick={() => void onAssign(false)} className="w-full gap-2 shadow-elevated" disabled={isGenerating}><Sparkles className="h-4 w-4" /> {isGenerating ? "Generating..." : "Generate schedule"}</Button><Button onClick={() => void onAssign(true)} variant="outline" className="w-full gap-2" disabled={!entry || isGenerating}><RotateCw className="h-4 w-4" /> Regenerate unlocked</Button><Button onClick={() => void handleSave()} variant="outline" className="w-full gap-2" disabled={!entry || !entryDirty || isPersisting}><Save className="h-4 w-4" />{isPersisting ? "Saving..." : entryDirty ? "Save current slot" : "All changes saved"}</Button><p className="text-[11px] text-muted-foreground leading-relaxed">Generate a draft (checked against every exam period), adjust manually, then save the slot in one request.</p></div>
           </StepCard>
         </div>
         <ScheduleGrid date={dateStr} slotId={activeSlotId} />

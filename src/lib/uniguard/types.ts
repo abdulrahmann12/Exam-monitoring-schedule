@@ -10,6 +10,8 @@ export interface Staff {
   department: string;
   workingDays: Day[];
   totalAssignments: number;
+  /** Rooms this person may cover at overlapping times (chief = 2, invigilator = 1) — comes from the server. */
+  maxParallelRooms: number;
 }
 
 export interface Room {
