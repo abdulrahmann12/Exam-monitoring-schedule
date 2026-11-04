@@ -18,3 +18,8 @@ export interface CurrentSession {
 }
 
 export type AuthSession = AuthResponse;
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}

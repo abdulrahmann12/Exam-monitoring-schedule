@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
+import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
+import { useDemoUser } from "@/hooks/useDemoUser";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
@@ -20,12 +22,14 @@ const DEFAULT_SETTINGS_FORM: SettingsRequest = {
   universityName: "",
   department: "",
   examPeriod: "",
+  maxDutiesPerDay: 0,
 };
 
 export default function Settings() {
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
   const { activeGroup } = useScheduleGroup();
+  const isDemo = useDemoUser();
   const [formState, setFormState] = useState<SettingsRequest>(DEFAULT_SETTINGS_FORM);
 
   const savePayload = useMemo<SettingsRequest>(
@@ -37,6 +41,7 @@ export default function Settings() {
       universityName: formState.universityName.trim(),
       department: formState.department?.trim() || null,
       examPeriod: settingsQuery.data?.examPeriod?.trim() || formState.examPeriod.trim(),
+      maxDutiesPerDay: Math.max(0, Math.trunc(formState.maxDutiesPerDay ?? 0)),
     }),
     [formState, settingsQuery.data?.examPeriod],
   );
@@ -54,6 +59,7 @@ export default function Settings() {
       universityName: settingsQuery.data.universityName,
       department: settingsQuery.data.department ?? "",
       examPeriod: settingsQuery.data.examPeriod,
+      maxDutiesPerDay: settingsQuery.data.maxDutiesPerDay ?? 0,
     });
   }, [settingsQuery.data]);
 
@@ -118,6 +124,27 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-3">
             <ThemeCard current={formState.theme} value="LIGHT" title="Light" description="Bright workspace for daytime operations." icon={Sun} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
             <ThemeCard current={formState.theme} value="DARK" title="Dark" description="Low-light mode for long scheduling sessions." icon={Moon} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
+          </div>
+        </section>
+
+        {!isDemo && <ChangePasswordCard />}
+
+        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+          <header>
+            <h3 className="text-display text-lg font-semibold">Scheduling rules</h3>
+            <p className="text-sm text-muted-foreground">Enforced by the server for every exam period, on generate and on save.</p>
+          </header>
+          <div>
+            <Label htmlFor="max-duties-per-day">Max duty sessions per person per day</Label>
+            <Input
+              id="max-duties-per-day"
+              type="number"
+              min={0}
+              max={12}
+              value={formState.maxDutiesPerDay ?? 0}
+              onChange={(event) => setFormState((previous) => ({ ...previous, maxDutiesPerDay: Number(event.target.value) || 0 }))}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">0 = unlimited. Rooms covered at the same time count as one session.</p>
           </div>
         </section>
 

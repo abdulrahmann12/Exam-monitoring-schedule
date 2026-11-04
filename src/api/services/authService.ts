@@ -2,7 +2,7 @@ import {
     DEMO_LOGIN_ENDPOINT,
     DEMO_LOGIN_INVALID_RESPONSE_MESSAGE,
 } from "../../lib/demoMode";
-import type { AuthResponse, CurrentSession, LoginRequest, ServiceResponse } from "../types";
+import type { AuthResponse, ChangePasswordRequest, CurrentSession, LoginRequest, ServiceResponse } from "../types";
 import { ApiError } from "../types";
 import { clearStoredAuthSession, setStoredAuthSession } from "../utils/authStorage";
 import { clearDemoSandbox } from "../utils/demoSandbox";
@@ -69,10 +69,32 @@ async function getCurrentSession(): Promise<ServiceResponse<CurrentSession>> {
   });
 }
 
+/**
+ * Revokes the token on the server (all of this user's sessions), then clears local state.
+ * Local logout always happens, even if the server call fails (offline, expired token).
+ */
 async function logout(): Promise<ServiceResponse<null>> {
+  try {
+    await performRequest<unknown, null>({ url: `${AUTH_ENDPOINT}/logout`, method: "POST" }, () => null);
+  } catch {
+    // Best effort — the token is discarded locally regardless.
+  }
   clearStoredAuthSession();
   clearDemoSandbox();
   return createSuccessResponse<null>(null);
+}
+
+/** Changes the password; the server revokes other sessions and returns a fresh token for this one. */
+async function changePassword(payload: ChangePasswordRequest): Promise<ServiceResponse<AuthResponse>> {
+  const response = await performRequest<AuthResponse>({
+    url: `${AUTH_ENDPOINT}/change-password`,
+    method: "POST",
+    data: payload,
+  });
+  if (response.success && hasValidAuthResponse(response.data)) {
+    setStoredAuthSession(response.data);
+  }
+  return response;
 }
 
 export const authService = {
@@ -80,4 +102,5 @@ export const authService = {
   demoLogin,
   getCurrentSession,
   logout,
+  changePassword,
 };
