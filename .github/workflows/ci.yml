@@ -1,0 +1,33 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      # Lint and type-check report pre-existing issues; they become blocking once cleaned up.
+      - name: Lint (non-blocking for now)
+        run: npm run lint
+        continue-on-error: true
+      - name: Type-check (non-blocking for now)
+        run: npx tsc -p tsconfig.app.json --noEmit
+        continue-on-error: true
