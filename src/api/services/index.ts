@@ -6,3 +6,4 @@ export * from "./roomsService";
 export * from "./scheduleGroupsService";
 export * from "./settingsService";
 export * from "./timeSlotsService";
+export * from "./usersService";

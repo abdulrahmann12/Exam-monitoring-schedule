@@ -8,4 +8,6 @@ export * from "./useSafeRequest";
 export * from "./useScheduleGroups";
 export * from "./useSettings";
 export * from "./useTimeSlots";
+export * from "./usePermissions";
+export * from "./useUsers";
 

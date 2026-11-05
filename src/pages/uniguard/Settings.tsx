@@ -10,6 +10,7 @@ import { AppLayout } from "@/components/uniguard/AppLayout";
 import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
 import { useDemoUser } from "@/hooks/useDemoUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ export default function Settings() {
   const updateMutation = useUpdateSettingsMutation();
   const { activeGroup } = useScheduleGroup();
   const isDemo = useDemoUser();
+  const { canEditSettings } = usePermissions();
   const [formState, setFormState] = useState<SettingsRequest>(DEFAULT_SETTINGS_FORM);
 
   const savePayload = useMemo<SettingsRequest>(
@@ -74,7 +76,7 @@ export default function Settings() {
 
   if (settingsQuery.isLoading) {
     return (
-      <AppLayout title="Settings" subtitle="Customize your branding, theme, and exported document headers.">
+      <AppLayout title="Settings" subtitle={canEditSettings ? "Customize your branding, theme, and exported document headers." : "Only administrators can change these settings. You can change your own password here."}>
         <LoadingState title="Loading settings..." description="Fetching backend branding and appearance settings." />
       </AppLayout>
     );
@@ -103,7 +105,7 @@ export default function Settings() {
   return (
     <AppLayout title="Settings" subtitle="Customize your branding, theme, and exported document headers.">
       <div className="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>
             <h3 className="text-display text-lg font-semibold">Brand identity</h3>
             <p className="text-sm text-muted-foreground">These settings appear in the sidebar, navbar, and exported documents.</p>
@@ -123,9 +125,9 @@ export default function Settings() {
             <Label>Logo URL</Label>
             <Input value={formState.logoUrl ?? ""} onChange={(event) => setFormState((previous) => ({ ...previous, logoUrl: event.target.value || null }))} placeholder="https://example.com/logo.png" />
           </div>
-        </section>
+        </fieldset>
 
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>
             <h3 className="text-display text-lg font-semibold">Appearance</h3>
             <p className="text-sm text-muted-foreground">Choose the theme stored on the backend for the application shell.</p>
@@ -134,11 +136,11 @@ export default function Settings() {
             <ThemeCard current={formState.theme} value="LIGHT" title="Light" description="Bright workspace for daytime operations." icon={Sun} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
             <ThemeCard current={formState.theme} value="DARK" title="Dark" description="Low-light mode for long scheduling sessions." icon={Moon} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
           </div>
-        </section>
+        </fieldset>
 
         {!isDemo && <ChangePasswordCard />}
 
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>
             <h3 className="text-display text-lg font-semibold">Scheduling rules</h3>
             <p className="text-sm text-muted-foreground">Enforced by the server for every exam period, on generate and on save.</p>
@@ -179,9 +181,9 @@ export default function Settings() {
             value={formState.studentsPerInvigilator ?? 0}
             onChange={(value) => setFormState((previous) => ({ ...previous, studentsPerInvigilator: value }))}
           />
-        </section>
+        </fieldset>
 
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
           <header>
             <h3 className="text-display text-lg font-semibold">Exported document header</h3>
             <p className="text-sm text-muted-foreground">Used as the header of every PDF and Excel export.</p>
@@ -211,11 +213,11 @@ export default function Settings() {
             <div className="mt-4 text-xs opacity-90">{formState.department || "Department"} · {activeGroup?.name || formState.examPeriod || "Exam period"}</div>
           </div>
 
-          <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !(activeGroup?.name || formState.examPeriod).trim()} onClick={() => void handleSave()}>
+          {canEditSettings && <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !(activeGroup?.name || formState.examPeriod).trim()} onClick={() => void handleSave()}>
             {saveState === "pending" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saveState === "pending" ? "Saving..." : saveState === "cooldown" ? "Saved" : "Save settings"}
-          </Button>
-        </section>
+          </Button>}
+        </fieldset>
       </div>
     </AppLayout>
   );

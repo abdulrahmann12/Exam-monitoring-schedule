@@ -10,10 +10,12 @@ import Scheduler from "@/pages/uniguard/Scheduler";
 import Settings from "@/pages/uniguard/Settings";
 import TimeSlots from "@/pages/uniguard/TimeSlots";
 import Timeline from "@/pages/uniguard/Timeline";
+import Users from "@/pages/uniguard/Users";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
+import { RequirePermission } from "./RequirePermission";
 
 export function AppRoutes() {
   const schedulerElement = (
@@ -39,11 +41,16 @@ export function AppRoutes() {
         <Route path="/dashboard" element={<Index />} />
         <Route path="/people" element={<People />} />
         <Route path="/rooms" element={<Rooms />} />
-        <Route path="/scheduler" element={schedulerElement} />
+        <Route element={<RequirePermission permission="canEdit" />}>
+          <Route path="/scheduler" element={schedulerElement} />
+        </Route>
         <Route path="/timeline" element={timelineElement} />
         <Route path="/time-slots" element={<TimeSlots />} />
         <Route path="/assignments" element={<Assignments />} />
         <Route path="/settings" element={<Settings />} />
+        <Route element={<RequirePermission permission="canManageUsers" />}>
+          <Route path="/users" element={<Users />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

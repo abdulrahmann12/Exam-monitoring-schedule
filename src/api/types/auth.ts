@@ -12,9 +12,18 @@ export interface AuthResponse {
   email: string;
 }
 
+/** ADMIN = everything; SCHEDULER = edit schedules; VIEWER = read-only; DEMO_ADMIN = public demo. */
+export type UserRole = "ADMIN" | "SCHEDULER" | "VIEWER" | "DEMO_ADMIN";
+
 export interface CurrentSession {
+  id?: string;
   email: string;
+  displayName?: string | null;
+  role?: UserRole;
+  /** Spring authority names, e.g. ROLE_ADMIN. */
   roles: string[];
+  /** True while the account has a temporary password set by an administrator. */
+  mustChangePassword?: boolean;
 }
 
 export type AuthSession = AuthResponse;

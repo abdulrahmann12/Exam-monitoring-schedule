@@ -1,4 +1,4 @@
-import { CalendarRange, Clock3, DoorOpen, LayoutDashboard, ListOrdered, Settings, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { CalendarRange, Clock3, DoorOpen, LayoutDashboard, ListOrdered, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -6,10 +6,11 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useBranding } from "@/lib/branding/BrandingProvider";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Scheduler", url: "/scheduler", icon: Sparkles },
+  { title: "Scheduler", url: "/scheduler", icon: Sparkles, needsEdit: true },
   { title: "Timeline", url: "/timeline", icon: CalendarRange },
   { title: "People", url: "/people", icon: Users },
   { title: "Rooms", url: "/rooms", icon: DoorOpen },
@@ -18,11 +19,15 @@ const items = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+const adminItems = [{ title: "Users", url: "/users", icon: UserCog }];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { appName, appTagline, logoDataUrl } = useBranding();
+  const { canEdit, canManageUsers } = usePermissions();
+  const visibleItems = [...items.filter((item) => canEdit || !item.needsEdit), ...(canManageUsers ? adminItems : [])];
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -45,7 +50,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const active = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

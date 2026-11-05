@@ -7,6 +7,7 @@ import type { UUID } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDemoUser } from "@/hooks/useDemoUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { peopleService } from "@/services";
 import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
@@ -17,7 +18,9 @@ import { unwrapServiceResponse } from "@/utils/serviceResponse";
  */
 export function UnavailabilityPanel({ personId }: { personId: UUID }) {
   const queryClient = useQueryClient();
-  const readOnly = useDemoUser(); // demo sessions are read-only on the server
+  const isDemo = useDemoUser(); // demo sessions are read-only on the server
+  const { canEdit } = usePermissions();
+  const readOnly = isDemo || !canEdit;
   const queryKey = ["people", personId, "unavailability"] as const;
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

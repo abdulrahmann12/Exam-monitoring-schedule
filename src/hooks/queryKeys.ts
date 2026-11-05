@@ -1,4 +1,7 @@
 export const queryKeys = {
+  users: {
+    all: ["users"] as const,
+  },
   auth: {
     all: ["auth"] as const,
     session: (token?: string | null) => ["auth", "session", token ?? null] as const,

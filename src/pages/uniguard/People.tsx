@@ -22,12 +22,14 @@ import {
 } from "@/hooks";
 import { roleLabel } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const DEFAULT_AVAILABLE_DAYS: WeekDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu"];
 
 export default function People() {
+  const { canEdit } = usePermissions();
   const peopleQuery = usePeopleQuery();
   const createMutation = useCreatePersonMutation();
   const updateMutation = useUpdatePersonMutation();
@@ -87,7 +89,7 @@ export default function People() {
     <AppLayout
       title="People"
       subtitle="Manage Chief Invigilators and Invigilators. Workload counts only the selected exam period."
-      actions={
+      actions={canEdit && (
         <PersonDialog
           key={editingPerson?.id ?? "new-person"}
           open={dialogOpen}
@@ -113,16 +115,16 @@ export default function People() {
           onSubmit={handleSubmit}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
-      }
+      )}
     >
       <div className="space-y-6">
-        <BulkUploadCard
+        {canEdit && <BulkUploadCard
           kind="persons"
           existingNames={people.map((person) => person.name)}
           isUploading={uploadBulkMutation.isPending}
           onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
           onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
-        />
+        />}
 
       <Tabs defaultValue="chiefs" className="space-y-5">
         <div className="flex items-center justify-between">
@@ -143,7 +145,7 @@ export default function People() {
             <EmptyState
               title="No chief invigilators"
               description="Create the first chief invigilator to start assigning rooms."
-              action={<Button onClick={() => setDialogOpen(true)}>Create chief invigilator</Button>}
+              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create chief invigilator</Button>}
             />
           ) : (
             <StaffTable people={chiefs} tone="chief" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
@@ -155,7 +157,7 @@ export default function People() {
             <EmptyState
               title="No invigilators"
               description="Create invigilators to fill room assignments."
-              action={<Button onClick={() => setDialogOpen(true)}>Create invigilator</Button>}
+              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create invigilator</Button>}
             />
           ) : (
             <StaffTable people={invigilators} tone="invigilator" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
@@ -178,6 +180,7 @@ function StaffTable({
   onRemove: (id: string) => Promise<void>;
   tone: "chief" | "invigilator";
 }) {
+  const { canEdit } = usePermissions();
   const max = Math.max(1, ...people.map((person) => person.totalAssignments));
   const averageAssignments = people.reduce((sum, person) => sum + person.totalAssignments, 0) / Math.max(1, people.length);
 
@@ -225,7 +228,7 @@ function StaffTable({
                 </div>
               </td>
               <td className="px-3 py-3 text-right">
-                <div className="flex justify-end gap-2">
+                <div className={cn("flex justify-end gap-2", !canEdit && "hidden")}>
                   <Button size="sm" variant="outline" className="gap-2" onClick={() => onEdit(person)}>
                     <PencilLine className="h-4 w-4" /> Edit
                   </Button>

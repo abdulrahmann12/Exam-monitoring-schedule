@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDemoUser } from "@/hooks/useDemoUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useCreateScheduleGroupMutation, useNotifyScheduleGroupMutation } from "@/hooks/useScheduleGroups";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
@@ -26,6 +27,7 @@ export function ScheduleGroupSelector() {
   const createMutation = useCreateScheduleGroupMutation();
   const notifyMutation = useNotifyScheduleGroupMutation();
   const isDemoUser = useDemoUser();
+  const { canEdit } = usePermissions();
   const [createOpen, setCreateOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [name, setName] = useState("");
@@ -120,7 +122,7 @@ export function ScheduleGroupSelector() {
       >
         <Plus className="h-4 w-4" />
       </Button>
-      {!isDemoUser && (
+      {!isDemoUser && canEdit && (
         <Button
           type="button"
           variant="outline"

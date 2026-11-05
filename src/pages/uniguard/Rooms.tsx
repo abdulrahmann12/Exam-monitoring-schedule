@@ -19,6 +19,7 @@ import {
     useUploadRoomsBulkMutation,
 } from "@/hooks";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
@@ -43,6 +44,7 @@ const DEFAULT_ROOM_FORM: RoomRequest = {
 };
 
 export default function Rooms() {
+  const { canEdit } = usePermissions();
   const roomsQuery = useRoomsQuery();
   const createMutation = useCreateRoomMutation();
   const updateMutation = useUpdateRoomMutation();
@@ -100,7 +102,7 @@ export default function Rooms() {
     <AppLayout
       title="Rooms"
       subtitle="Define exam rooms, capacities, and minimum invigilator requirements."
-      actions={
+      actions={canEdit && (
         <RoomDialog
           key={editingRoom?.id ?? "new-room"}
           open={dialogOpen}
@@ -126,22 +128,22 @@ export default function Rooms() {
           onSubmit={handleSubmit}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
-      }
+      )}
     >
       <div className="space-y-6">
-        <BulkUploadCard
+        {canEdit && <BulkUploadCard
           kind="rooms"
           existingNames={rooms.map((room) => room.name)}
           isUploading={uploadBulkMutation.isPending}
           onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
           onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
-        />
+        />}
 
         {rooms.length === 0 ? (
           <EmptyState
             title="No rooms configured"
             description="Create the first room to start assigning exam coverage."
-            action={<Button onClick={() => setDialogOpen(true)}>Create room</Button>}
+            action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create room</Button>}
           />
         ) : (
           <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
@@ -177,7 +179,7 @@ export default function Rooms() {
                       1 Chief Invigilator + {room.minInvigilators} Invigilator{room.minInvigilators > 1 ? "s" : ""}{room.hallGender && room.hallGender !== "MIXED" ? ` · ${room.hallGender.toLowerCase()} hall` : ""}
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className={cn("flex justify-end gap-2", !canEdit && "hidden")}>
                         <Button size="sm" variant="outline" className="gap-2" onClick={() => { setEditingRoom(room); setDialogOpen(true); }}>
                           <PencilLine className="h-4 w-4" /> Edit
                         </Button>

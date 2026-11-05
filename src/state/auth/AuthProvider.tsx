@@ -27,6 +27,8 @@ interface AuthContextValue {
   login: (payload: LoginRequest) => Promise<void>;
   loginWithDemo: () => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-reads the stored token, e.g. after a password change issued a new one. */
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,6 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate(LOGIN_ROUTE, { replace: true });
   }, [navigate, queryClient]);
 
+  const refreshSession = useCallback(async () => {
+    const stored = getAuthSession();
+    if (stored?.accessToken) {
+      // Load the new session first so the app does not flash a loading screen.
+      await queryClient.fetchQuery({ queryKey: ["auth", "session", stored.accessToken], queryFn: loadCurrentSession });
+    }
+    setSession(stored);
+  }, [queryClient]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -131,8 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       loginWithDemo,
       logout,
+      refreshSession,
     }),
     [
+      refreshSession,
       isDemoLoginPending,
       isLoginPending,
       login,

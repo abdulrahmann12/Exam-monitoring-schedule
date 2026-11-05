@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { DemoModeBanner } from "@/components/uniguard/DemoModeBanner";
+import ForcePasswordChange from "@/pages/auth/ForcePasswordChange";
 import { useAuth } from "@/state/auth";
 import { ScheduleGroupProvider } from "@/state/scheduleGroup";
 
@@ -17,7 +18,7 @@ function RouteLoader() {
 
 export function ProtectedRoute() {
   const location = useLocation();
-  const { isAuthenticated, isRestoring } = useAuth();
+  const { isAuthenticated, isRestoring, user } = useAuth();
 
   if (isRestoring) {
     return <RouteLoader />;
@@ -25,6 +26,11 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // The server refuses everything else until the temporary password is replaced.
+  if (user?.mustChangePassword) {
+    return <ForcePasswordChange />;
   }
 
   return (

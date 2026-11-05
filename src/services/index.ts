@@ -7,4 +7,5 @@ export {
   scheduleGroupsService,
   settingsService,
   timeSlotsService,
+  usersService,
 } from "@/api";
