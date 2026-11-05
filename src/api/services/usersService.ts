@@ -1,4 +1,4 @@
-import type { AppUser, CreateUserRequest, ServiceResponse, UpdateUserRequest, UUID } from "../types";
+import type { AppUser, CreateUserRequest, InviteResponse, ServiceResponse, UpdateUserRequest, UUID } from "../types";
 import { performRequest } from "../utils/request";
 
 const USERS_ENDPOINT = "/api/users";
@@ -7,8 +7,13 @@ async function getUsers(): Promise<ServiceResponse<AppUser[]>> {
   return performRequest<AppUser[]>({ url: USERS_ENDPOINT, method: "GET" });
 }
 
-async function createUser(payload: CreateUserRequest): Promise<ServiceResponse<AppUser>> {
-  return performRequest<AppUser>({ url: USERS_ENDPOINT, method: "POST", data: payload });
+async function createUser(payload: CreateUserRequest): Promise<ServiceResponse<InviteResponse>> {
+  return performRequest<InviteResponse>({ url: USERS_ENDPOINT, method: "POST", data: payload });
+}
+
+/** New invitation link (and email) for a user who has not signed in yet. */
+async function inviteUser(id: UUID): Promise<ServiceResponse<InviteResponse>> {
+  return performRequest<InviteResponse>({ url: `${USERS_ENDPOINT}/${id}/invite`, method: "POST" });
 }
 
 async function updateUser(id: UUID, payload: UpdateUserRequest): Promise<ServiceResponse<AppUser>> {
@@ -34,6 +39,7 @@ async function deleteUser(id: UUID): Promise<ServiceResponse<null>> {
 export const usersService = {
   getUsers,
   createUser,
+  inviteUser,
   updateUser,
   unlockUser,
   resetPassword,

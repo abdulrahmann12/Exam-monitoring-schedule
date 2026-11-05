@@ -35,6 +35,18 @@
     {
       "source": "/settings",
       "destination": "/index.html"
+    },
+    {
+      "source": "/users",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/forgot-password",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reset-password",
+      "destination": "/index.html"
     }
   ]
 }

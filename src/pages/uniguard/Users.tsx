@@ -1,8 +1,8 @@
-import { KeyRound, LockOpen, PencilLine, Plus, ShieldCheck, Trash2, UserCog, Wand2 } from "lucide-react";
+import { Copy, KeyRound, LockOpen, MailCheck, MailWarning, PencilLine, Plus, Send, ShieldCheck, Trash2, UserCog, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { AppUser, AssignableRole } from "@/api";
+import type { AppUser, AssignableRole, InviteResponse } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -20,6 +20,7 @@ import {
   roleLabel,
   useCreateUserMutation,
   useDeleteUserMutation,
+  useInviteUserMutation,
   useResetUserPasswordMutation,
   useUnlockUserMutation,
   useUpdateUserMutation,
@@ -71,7 +72,9 @@ export default function Users() {
   const usersQuery = useUsersQuery();
   const unlockMutation = useUnlockUserMutation();
   const deleteMutation = useDeleteUserMutation();
+  const inviteMutation = useInviteUserMutation();
   const [creating, setCreating] = useState(false);
+  const [inviteResult, setInviteResult] = useState<InviteResponse | null>(null);
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [resetting, setResetting] = useState<AppUser | null>(null);
   const [deleting, setDeleting] = useState<AppUser | null>(null);
@@ -108,6 +111,14 @@ export default function Users() {
       toast.success(`${user.email} can sign in again.`);
     } catch (error) {
       showErrorToast(error, { title: "Could not unlock the account." });
+    }
+  }
+
+  async function resendInvite(user: AppUser) {
+    try {
+      setInviteResult(await inviteMutation.mutateAsync(user.id));
+    } catch (error) {
+      showErrorToast(error, { title: "Could not send the invitation." });
     }
   }
 
@@ -169,6 +180,7 @@ export default function Users() {
                         {user.locked && (
                           <Badge variant="outline" className="border-warning/30 text-warning" title={`Until ${formatDate(user.lockedUntil)}`}>Locked</Badge>
                         )}
+                        {user.invitePending && <Badge variant="outline" className="border-primary/30 text-primary">Invitation sent</Badge>}
                         {user.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
                       </div>
                     </td>
@@ -178,6 +190,15 @@ export default function Users() {
                         {user.locked && (
                           <Button size="sm" variant="outline" className="gap-1" disabled={unlockMutation.isPending} onClick={() => void unlock(user)}>
                             <LockOpen className="h-3.5 w-3.5" /> Unlock
+                          </Button>
+                        )}
+                        {!self && !user.lastLoginAt && (
+                          <Button
+                            size="icon" variant="ghost" aria-label={`Send a new invitation to ${user.email}`}
+                            title="Send a new invitation link" disabled={inviteMutation.isPending}
+                            onClick={() => void resendInvite(user)}
+                          >
+                            <Send className="h-4 w-4" />
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" aria-label={`Edit ${user.email}`} onClick={() => setEditing(user)}>
@@ -207,7 +228,8 @@ export default function Users() {
         </div>
       )}
 
-      {creating && <CreateUserDialog onClose={() => setCreating(false)} />}
+      {creating && <CreateUserDialog onClose={() => setCreating(false)} onInvited={setInviteResult} />}
+      {inviteResult && <InviteLinkDialog result={inviteResult} onClose={() => setInviteResult(null)} />}
       {editing && <EditUserDialog user={editing} isSelf={isSelf(editing)} onClose={() => setEditing(null)} />}
       {resetting && <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />}
 
@@ -266,21 +288,31 @@ function TemporaryPasswordField({ value, onChange }: { value: string; onChange: 
   );
 }
 
-function CreateUserDialog({ onClose }: { onClose: () => void }) {
+function CreateUserDialog({ onClose, onInvited }: { onClose: () => void; onInvited: (result: InviteResponse) => void }) {
   const createMutation = useCreateUserMutation();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<AssignableRole>("SCHEDULER");
+  const [sendInvite, setSendInvite] = useState(true);
   const [password, setPassword] = useState(() => generatePassword());
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const canSubmit = emailValid && !passwordProblem(password) && !createMutation.isPending;
+  const canSubmit = emailValid && (sendInvite || !passwordProblem(password)) && !createMutation.isPending;
 
   async function submit() {
     try {
-      await createMutation.mutateAsync({ email: email.trim(), displayName: displayName.trim() || null, role, temporaryPassword: password });
-      toast.success(`${email.trim()} was added.`, { description: "Share the temporary password with them privately." });
+      const result = await createMutation.mutateAsync({
+        email: email.trim(),
+        displayName: displayName.trim() || null,
+        role,
+        ...(sendInvite ? { sendInvite: true } : { temporaryPassword: password }),
+      });
       onClose();
+      if (result.inviteLink) {
+        onInvited(result);
+      } else {
+        toast.success(`${email.trim()} was added.`, { description: "Share the temporary password with them privately." });
+      }
     } catch (error) {
       showErrorToast(error, { title: "Could not add the user." });
     }
@@ -291,7 +323,7 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><UserCog className="h-4 w-4" /> Add user</DialogTitle>
-          <DialogDescription>The new user signs in with the temporary password and is asked to change it.</DialogDescription>
+          <DialogDescription>Invite the person by email, or give them a temporary password.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -307,11 +339,24 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
             <Label htmlFor="user-role">Role</Label>
             <RoleSelect value={role} onChange={setRole} />
           </div>
-          <TemporaryPasswordField value={password} onChange={setPassword} />
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <Label htmlFor="send-invite">Send an invitation email</Label>
+              <p className="text-xs text-muted-foreground">
+                {sendInvite
+                  ? "The user gets a link to choose their own password (recommended)."
+                  : "You set a temporary password and give it to the user yourself."}
+              </p>
+            </div>
+            <Switch id="send-invite" checked={sendInvite} onCheckedChange={setSendInvite} />
+          </div>
+          {!sendInvite && <TemporaryPasswordField value={password} onChange={setPassword} />}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!canSubmit} onClick={() => void submit()}>{createMutation.isPending ? "Adding..." : "Add user"}</Button>
+          <Button disabled={!canSubmit} onClick={() => void submit()}>
+            {createMutation.isPending ? "Adding..." : sendInvite ? "Add and invite" : "Add user"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -398,6 +443,51 @@ function ResetPasswordDialog({ user, onClose }: { user: AppUser; onClose: () => 
           <Button disabled={Boolean(passwordProblem(password)) || resetMutation.isPending} onClick={() => void submit()}>
             {resetMutation.isPending ? "Saving..." : "Set temporary password"}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Shows the invitation link so the admin can share it when email is not set up (or as a backup). */
+function InviteLinkDialog({ result, onClose }: { result: InviteResponse; onClose: () => void }) {
+  const link = result.inviteLink ?? "";
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Invitation link copied.");
+    } catch {
+      toast.error("Could not copy automatically. Select the link and copy it.");
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invitation for {result.user.email}</DialogTitle>
+          <DialogDescription>
+            {result.emailSent
+              ? "The invitation email is on its way. You can also share the link below yourself."
+              : "Email is not set up on the server, so no email was sent. Send this link to the person yourself."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${result.emailSent ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}>
+          {result.emailSent ? <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" /> : <MailWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />}
+          <p>
+            Works once, only for this person, until {result.inviteExpiresAt ? new Date(result.inviteExpiresAt).toLocaleString() : "it expires"}.
+            Anyone with the link can set this account's password, so share it only with them.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Input readOnly value={link} className="font-mono text-xs" onFocus={(event) => event.currentTarget.select()} aria-label="Invitation link" />
+          <Button type="button" variant="outline" className="gap-1" onClick={() => void copy()}>
+            <Copy className="h-4 w-4" /> Copy
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose}>Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

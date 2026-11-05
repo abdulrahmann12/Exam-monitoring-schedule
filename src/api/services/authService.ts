@@ -2,7 +2,7 @@ import {
     DEMO_LOGIN_ENDPOINT,
     DEMO_LOGIN_INVALID_RESPONSE_MESSAGE,
 } from "../../lib/demoMode";
-import type { AuthResponse, ChangePasswordRequest, CurrentSession, LoginRequest, ServiceResponse } from "../types";
+import type { AccountLinkInfo, AuthResponse, ChangePasswordRequest, CurrentSession, LoginRequest, ServiceResponse } from "../types";
 import { ApiError } from "../types";
 import { clearDemoSandbox } from "../utils/demoSandbox";
 import { performRequest } from "../utils/request";
@@ -80,6 +80,24 @@ async function changePassword(payload: ChangePasswordRequest): Promise<ServiceRe
   });
 }
 
+/** "Forgot password": the server answers the same way whether or not the account exists. */
+async function forgotPassword(email: string): Promise<ServiceResponse<{ message: string }>> {
+  return performRequest<{ message: string }>({ url: `${AUTH_ENDPOINT}/forgot-password`, method: "POST", data: { email } });
+}
+
+/** Checks an emailed link before showing the password form. */
+async function checkPasswordLink(token: string): Promise<ServiceResponse<AccountLinkInfo>> {
+  return performRequest<AccountLinkInfo>({ url: `${AUTH_ENDPOINT}/reset-password/check`, method: "POST", data: { token } });
+}
+
+/** Sets the password from an invitation or reset link; every existing session is signed out. */
+async function setPasswordFromLink(token: string, newPassword: string): Promise<ServiceResponse<null>> {
+  return performRequest<unknown, null>(
+    { url: `${AUTH_ENDPOINT}/reset-password`, method: "POST", data: { token, newPassword } },
+    () => null,
+  );
+}
+
 export const authService = {
   login,
   demoLogin,
@@ -87,4 +105,7 @@ export const authService = {
   logout,
   logoutEverywhere,
   changePassword,
+  forgotPassword,
+  checkPasswordLink,
+  setPasswordFromLink,
 };

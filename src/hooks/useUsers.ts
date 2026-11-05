@@ -28,6 +28,10 @@ export function useCreateUserMutation() {
   return useUsersMutation(async (payload: CreateUserRequest) => unwrapServiceResponse(await usersService.createUser(payload)));
 }
 
+export function useInviteUserMutation() {
+  return useUsersMutation(async (id: UUID) => unwrapServiceResponse(await usersService.inviteUser(id)));
+}
+
 export function useUpdateUserMutation() {
   return useUsersMutation(async ({ id, payload }: { id: UUID; payload: UpdateUserRequest }) =>
     unwrapServiceResponse(await usersService.updateUser(id, payload)));

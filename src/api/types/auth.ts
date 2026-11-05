@@ -31,6 +31,15 @@ export interface CurrentSession {
 
 export type AuthSession = AuthResponse;
 
+/** What an emailed link is for. */
+export type AccountLinkPurpose = "INVITE" | "PASSWORD_RESET";
+
+export interface AccountLinkInfo {
+  purpose: AccountLinkPurpose;
+  email: string;
+  expiresAt: ISOInstant;
+}
+
 export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;

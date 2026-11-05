@@ -13,6 +13,8 @@ export interface AppUser {
   locked: boolean;
   lockedUntil: ISOInstant | null;
   mustChangePassword: boolean;
+  /** An unused, unexpired invitation link exists. */
+  invitePending: boolean;
   lastLoginAt: ISOInstant | null;
   createdAt: ISOInstant;
 }
@@ -21,7 +23,19 @@ export interface CreateUserRequest {
   email: string;
   displayName?: string | null;
   role: AssignableRole;
-  temporaryPassword: string;
+  /** Required unless sendInvite is true. */
+  temporaryPassword?: string;
+  /** Email the user a link to choose their own password. */
+  sendInvite?: boolean;
+}
+
+/** Result of creating or inviting a user. */
+export interface InviteResponse {
+  user: AppUser;
+  /** Copyable invitation link (null when a temporary password was used). */
+  inviteLink: string | null;
+  inviteExpiresAt: ISOInstant | null;
+  emailSent: boolean;
 }
 
 export interface UpdateUserRequest {

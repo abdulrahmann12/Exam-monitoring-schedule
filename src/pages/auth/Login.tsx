@@ -1,5 +1,6 @@
 import { LoaderCircle, PlayCircle, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "@/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,7 +30,7 @@ export default function Login() {
 
   const invalidCredentialsHint =
     loginError === "Invalid email or password."
-      ? `This app is currently signing in against ${backendTarget}. If local login works but this one fails, verify the deployed admin email and password for that backend and restart the service after updating its bootstrap auth configuration.`
+      ? "Check the email and password. If you forgot your password, use \"Forgot password?\" below the password field."
       : null;
 
   function handleAuthError(error: unknown) {
@@ -153,7 +154,12 @@ export default function Login() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">
+                      Forgot password?
+                    </Link>
+                  </div>
                   <Input
                     id="password"
                     type="password"

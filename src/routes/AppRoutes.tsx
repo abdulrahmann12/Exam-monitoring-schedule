@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
 import Login from "@/pages/auth/Login";
+import ResetPassword from "@/pages/auth/ResetPassword";
 import People from "@/pages/uniguard/People";
 import Rooms from "@/pages/uniguard/Rooms";
 import Assignments from "@/pages/uniguard/Assignments";
@@ -35,6 +37,9 @@ export function AppRoutes() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
       </Route>
+
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

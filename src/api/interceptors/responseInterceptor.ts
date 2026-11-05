@@ -14,7 +14,15 @@ import { logApiError, normalizeApiError } from "../utils/errorHandler";
 export const REFRESH_ENDPOINT = "/api/auth/refresh";
 
 /** Endpoints that never trigger a silent renewal (they are the sign-in/renewal flow itself). */
-const SESSION_ENDPOINTS = ["/api/auth/login", "/api/auth/demo-login", REFRESH_ENDPOINT, "/api/auth/logout"];
+const SESSION_ENDPOINTS = [
+  "/api/auth/login",
+  "/api/auth/demo-login",
+  REFRESH_ENDPOINT,
+  "/api/auth/logout",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/reset-password/check",
+];
 
 type RetriableConfig = InternalAxiosRequestConfig & { _authRetried?: boolean };
 
