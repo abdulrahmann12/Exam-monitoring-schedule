@@ -24,10 +24,7 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      # Lint and type-check report pre-existing issues; they become blocking once cleaned up.
-      - name: Lint (non-blocking for now)
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
-      - name: Type-check (non-blocking for now)
+      - name: Type-check
         run: npx tsc -p tsconfig.app.json --noEmit
-        continue-on-error: true
