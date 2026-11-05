@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useUniGuard } from "@/lib/uniguard/store";
 import { Staff, roleLabel } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
-import { CalendarDays, MapPin, TrendingUp, AlertTriangle } from "lucide-react";
+import { CalendarDays, MapPin, TrendingUp, AlertTriangle, type LucideIcon } from "lucide-react";
 import { DayBadges } from "./DayBadges";
 import { UnavailabilityPanel } from "./UnavailabilityPanel";
 import { useMemo } from "react";
@@ -77,6 +77,6 @@ export function StaffProfileDialog({ staffId, open, onOpenChange }: Props) {
   );
 }
 
-function Stat({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function Stat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return <div className="rounded-lg border border-border bg-card/50 px-3 py-2"><div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium"><Icon className="h-3 w-3" /> {label}</div><div className="text-display text-lg font-bold mt-0.5">{value}</div></div>;
 }

@@ -248,7 +248,7 @@ export function executeWithRequestDeduplication<T>(options: {
   const { config, dedupe, execute } = options;
 
   if (!dedupe.enabled || dedupe.mode === "none") {
-    return execute(config.signal);
+    return execute(config.signal as AbortSignal | undefined);
   }
 
   const fingerprint = getRequestFingerprint(config, dedupe);
@@ -264,8 +264,10 @@ export function executeWithRequestDeduplication<T>(options: {
   }
 
   const controller = typeof AbortController !== "undefined" ? new AbortController() : undefined;
-  const { dispose, signal } = createMergedAbortSignal(config.signal, controller?.signal);
+  const { dispose, signal } = createMergedAbortSignal(config.signal as AbortSignal | undefined, controller?.signal);
 
+  // Declared before the promise callbacks that reference it, assigned exactly once below.
+  // eslint-disable-next-line prefer-const
   let entry!: RequestLockEntry<T>;
 
   const promise = execute(signal)

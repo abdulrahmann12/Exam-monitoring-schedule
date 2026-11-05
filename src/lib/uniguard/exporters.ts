@@ -62,7 +62,7 @@ export function exportPdf(ctx: ExportContext, opts: { mode: "single" | "full"; d
     doc.rect(0, 0, pageW, 72, "F");
     let textX = PDF_HORIZONTAL_MARGIN;
     if (brand.logoDataUrl) {
-      try { doc.addImage(brand.logoDataUrl, "PNG", PDF_HORIZONTAL_MARGIN, 16, 40, 40); textX = 92; } catch {}
+      try { doc.addImage(brand.logoDataUrl, "PNG", PDF_HORIZONTAL_MARGIN, 16, 40, 40); textX = 92; } catch { /* unreadable logo — export without it */ }
     }
     doc.setTextColor(31, 64, 135); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
     doc.text(brand.university, textX, 32);
@@ -199,7 +199,7 @@ export function exportXlsx(ctx: ExportContext, opts: { mode: "single" | "full"; 
   const ws1 = XLSX.utils.aoa_to_sheet(scheduleRows);
   ws1["!cols"] = [{ wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 26 }, { wch: 10 }, { wch: 24 }, { wch: 50 }];
   // Header style hint via cell formatting (xlsx CE does not write styles but freeze + filter still help)
-  ws1["!freeze"] = { xSplit: 0, ySplit: 1 } as any;
+  ws1["!freeze"] = { xSplit: 0, ySplit: 1 };
   ws1["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: 0, c: scheduleRows[0].length - 1 } }) };
   XLSX.utils.book_append_sheet(wb, ws1, "Full Schedule");
 

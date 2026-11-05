@@ -56,7 +56,9 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(THEME_KEY) as Theme | null;
       if (raw === "dark" || raw === "light") return raw;
-    } catch {}
+    } catch {
+      // localStorage unavailable (private mode / blocked) — fall back to the default theme
+    }
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
 
@@ -95,7 +97,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
-    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage unavailable — theme just won't persist */ }
   }, [theme]);
 
   useEffect(() => {

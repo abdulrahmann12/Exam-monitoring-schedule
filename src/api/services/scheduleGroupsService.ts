@@ -18,7 +18,7 @@ const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreads
 
 function extractFileName(contentDisposition?: string, fallbackFileName = "schedule-bulk-template.xlsx"): string {
   if (!contentDisposition) return fallbackFileName;
-  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^\";\/]+)/i);
+  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|")?([^";/]+)/i);
   return match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "").trim()) : fallbackFileName;
 }
 

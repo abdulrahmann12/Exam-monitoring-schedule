@@ -37,14 +37,16 @@ interface SafeMutationOptions<TData, TError, TVariables, TContext>
   mutationFn: MutationFunction<TData, TVariables>;
 }
 
-interface SafeMutationResult<TData, TError, TVariables, TContext>
-  extends UseMutationResult<TData, TError, TVariables, TContext> {
-  getIsLocked: (variables: TVariables) => boolean;
-  getIsPending: (variables: TVariables) => boolean;
-  getRequestFingerprint: (variables: TVariables) => string;
-  getRequestState: (variables: TVariables) => RequestLockState;
-  runSafely: (variables: TVariables) => Promise<TData>;
-}
+// UseMutationResult is a union (idle | pending | error | success), which an interface cannot
+// extend — doing so silently dropped every mutation property (mutateAsync, isPending, ...).
+type SafeMutationResult<TData, TError, TVariables, TContext> =
+  UseMutationResult<TData, TError, TVariables, TContext> & {
+    getIsLocked: (variables: TVariables) => boolean;
+    getIsPending: (variables: TVariables) => boolean;
+    getRequestFingerprint: (variables: TVariables) => string;
+    getRequestState: (variables: TVariables) => RequestLockState;
+    runSafely: (variables: TVariables) => Promise<TData>;
+  };
 
 export function useSafeRequest<TVariables, TResult = void>(options: UseSafeRequestOptions<TVariables, TResult>) {
   const { dedupe, getFingerprint, request } = options;
