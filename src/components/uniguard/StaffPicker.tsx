@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Staff, Day, Assignment, Role, roleLabel } from "@/lib/uniguard/types";
+import { Staff, Day, Assignment, Role, Room, roleLabel } from "@/lib/uniguard/types";
 import { Check, X, CircleDot, Clock, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPickerTiers } from "@/lib/uniguard/constraintEngine";
@@ -14,13 +14,17 @@ interface Props {
   slotAssignments: Assignment[];
   currentId: string | null;
   onPick: (id: string | null) => void;
+  /** Room being staffed — enables hall-gender hints. */
+  room?: Room;
+  /** Exam subject code — hides people who teach it. */
+  subjectCode?: string | null;
 }
 
-export function StaffPicker({ trigger, role, day, staff, slotAssignments, currentId, onPick }: Props) {
+export function StaffPicker({ trigger, role, day, staff, slotAssignments, currentId, onPick, room, subjectCode }: Props) {
   const [open, setOpen] = useState(false);
   const tiers = useMemo(
-    () => getPickerTiers({ role, day, staff, assignments: slotAssignments, currentId }),
-    [role, day, staff, slotAssignments, currentId]
+    () => getPickerTiers({ role, day, staff, assignments: slotAssignments, currentId, room, subjectCode }),
+    [role, day, staff, slotAssignments, currentId, room, subjectCode]
   );
   const totalAvailable = tiers.free.length + tiers.partiallyBusy.length;
   const label = roleLabel(role);
@@ -34,17 +38,17 @@ export function StaffPicker({ trigger, role, day, staff, slotAssignments, curren
           <CommandList className="max-h-80">
             <CommandEmpty>No staff matches your search.</CommandEmpty>
             {tiers.free.length > 0 && (
-              <CommandGroup heading={<span className="flex items-center gap-1.5 text-success"><CircleDot className="h-3 w-3" /> Free Now ({tiers.free.length})</span> as any}>
+              <CommandGroup heading={<span className="flex items-center gap-1.5 text-success"><CircleDot className="h-3 w-3" /> Free Now ({tiers.free.length})</span>}>
                 {tiers.free.slice(0, 25).map((s) => <Item key={s.id} s={s} tone="free" current={currentId === s.id} onPick={() => { onPick(s.id); setOpen(false); }} />)}
               </CommandGroup>
             )}
             {tiers.partiallyBusy.length > 0 && (
-              <CommandGroup heading={<span className="flex items-center gap-1.5 text-warning"><Clock className="h-3 w-3" /> Partially Busy ({tiers.partiallyBusy.length})</span> as any}>
+              <CommandGroup heading={<span className="flex items-center gap-1.5 text-warning"><Clock className="h-3 w-3" /> Partially Busy ({tiers.partiallyBusy.length})</span>}>
                 {tiers.partiallyBusy.slice(0, 15).map((s) => <Item key={s.id} s={s} tone="eligible" current={currentId === s.id} onPick={() => { onPick(s.id); setOpen(false); }} />)}
               </CommandGroup>
             )}
             {tiers.unavailable.length > 0 && (
-              <CommandGroup heading={<span className="flex items-center gap-1.5 text-muted-foreground"><Ban className="h-3 w-3" /> Unavailable ({tiers.unavailable.length})</span> as any}>
+              <CommandGroup heading={<span className="flex items-center gap-1.5 text-muted-foreground"><Ban className="h-3 w-3" /> Unavailable ({tiers.unavailable.length})</span>}>
                 {tiers.unavailable.slice(0, 20).map(({ staff: s, reason }) => (
                   <CommandItem key={s.id} value={`__disabled_${s.name}`} disabled className="opacity-50 cursor-not-allowed flex items-center justify-between">
                     <div className="flex flex-col">

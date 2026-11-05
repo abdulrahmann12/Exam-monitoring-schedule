@@ -35,6 +35,7 @@ export interface AssignmentRequest {
   locked: boolean;
   source?: AssignmentSource;
   invigilatorIds: Array<UUID | null>;
+  studentCount?: number | null;
 }
 
 export interface BulkAssignmentRequest {
@@ -47,6 +48,7 @@ export interface BulkAssignmentRequest {
   chiefInvigilatorId?: UUID | null;
   isLocked: boolean;
   invigilatorIds: Array<UUID | null>;
+  studentCount?: number | null;
 }
 
 export interface AssignmentInvigilator {
@@ -70,6 +72,7 @@ export interface Assignment {
   endTime: ISOTime;
   subjectName: string | null;
   subjectCode: string | null;
+  studentCount?: number | null;
   chiefInvigilatorId: UUID | null;
   chiefInvigilatorName: string | null;
   locked: boolean;
@@ -88,6 +91,7 @@ export interface PreviewAssignment {
   locked: boolean;
   subjectName?: string | null;
   subjectCode?: string | null;
+  studentCount?: number | null;
 }
 
 export interface GeneratePreviewRequest {

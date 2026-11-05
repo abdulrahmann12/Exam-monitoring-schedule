@@ -14,13 +14,14 @@ import type {
     TimeSlotsQuery,
 } from "@/api";
 import { queryKeys } from "@/hooks/queryKeys";
+import { useSettingsQuery } from "@/hooks/useSettings";
 import { assignmentsService, peopleService, roomsService, timeSlotsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
 import { overlappingAssignmentsForSlot, validateAssignment, validateSlotAssignments } from "./constraintEngine";
-import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, Room, ScheduleEntry, Slot, Staff } from "./types";
+import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, requiredInvigilators, Room, ScheduleEntry, Slot, Staff } from "./types";
 
 const MAX_BACKEND_PAGE_SIZE = 100;
 
@@ -135,6 +136,8 @@ interface Ctx {
   isLoading: boolean;
   isPersisting: boolean;
   isGenerating: boolean;
+  /** From Settings: one invigilator per N students (0 = room minimum only). */
+  studentsPerInvigilator: number;
   error: unknown;
   isEntryDirty: (date: string, slotId: string) => boolean;
   setStaffWorkingDays: (id: string, days: Day[]) => void;
@@ -149,7 +152,7 @@ interface Ctx {
   manualAssign: (date: string, slotId: string, roomId: string, kind: "chief" | "invigilator", index: number, staffId: string | null) => { ok: boolean; message?: string };
   addInvigilatorSlot: (date: string, slotId: string, roomId: string) => void;
   removeInvigilatorSlot: (date: string, slotId: string, roomId: string, index: number) => void;
-  updateAssignmentSubject: (date: string, slotId: string, roomId: string, patch: { subjectName?: string; subjectCode?: string }) => void;
+  updateAssignmentSubject: (date: string, slotId: string, roomId: string, patch: { subjectName?: string; subjectCode?: string; studentCount?: number | null }) => void;
   addRoomToSlot: (date: string, slotId: string, roomId: string) => void;
   swapInvigilators: (date: string, slotId: string, fromRoomId: string, fromIdx: number, toRoomId: string, toIdx: number) => void;
   saveEntry: (date: string, slotId: string) => Promise<boolean>;
@@ -219,6 +222,8 @@ function toStaff(person: Person): Staff {
     workingDays: person.availableDays,
     totalAssignments: person.totalAssignments,
     maxParallelRooms: person.maxParallelRooms,
+    gender: person.gender ?? null,
+    subjectCodes: (person.subjectCodes ?? []).map((code) => code.toUpperCase()),
   };
 }
 
@@ -228,6 +233,7 @@ function toRoom(room: ApiRoom): Room {
     name: room.name,
     capacity: room.capacity,
     minInvigilators: room.minInvigilators,
+    hallGender: room.hallGender ?? "MIXED",
   };
 }
 
@@ -241,15 +247,16 @@ function toSlot(slot: ApiTimeSlot): Slot {
   };
 }
 
-function toLocalAssignment(assignment: ApiAssignment, roomMap: Map<string, Room>): Assignment {
+function toLocalAssignment(assignment: ApiAssignment, roomMap: Map<string, Room>, studentsPerInvigilator = 0): Assignment {
   const orderedInvigilators = [...assignment.invigilators].sort(
     (left, right) => left.positionIndex - right.positionIndex,
   );
   const invigilatorIds = orderedInvigilators.map((invigilator) => invigilator.invigilatorId);
   const room = roomMap.get(assignment.roomId);
 
-  if (room && invigilatorIds.length < room.minInvigilators) {
-    invigilatorIds.push(...Array.from({ length: room.minInvigilators - invigilatorIds.length }, () => null));
+  const required = room ? requiredInvigilators(room, assignment.studentCount, studentsPerInvigilator) : 0;
+  if (invigilatorIds.length < required) {
+    invigilatorIds.push(...Array.from({ length: required - invigilatorIds.length }, () => null));
   }
 
   return {
@@ -260,17 +267,18 @@ function toLocalAssignment(assignment: ApiAssignment, roomMap: Map<string, Room>
     locked: assignment.locked,
     subjectName: assignment.subjectName ?? undefined,
     subjectCode: assignment.subjectCode ?? undefined,
+    studentCount: assignment.studentCount ?? null,
   };
 }
 
-function toScheduleEntries(assignments: ApiAssignment[], rooms: Room[]): ScheduleEntry[] {
+function toScheduleEntries(assignments: ApiAssignment[], rooms: Room[], studentsPerInvigilator = 0): ScheduleEntry[] {
   const roomMap = new Map(rooms.map((room) => [room.id, room]));
   const grouped = new Map<string, ScheduleEntry>();
 
   assignments.forEach((assignment) => {
     const key = `${assignment.examDate}::${assignment.timeSlotId}`;
     const existing = grouped.get(key);
-    const nextAssignment = toLocalAssignment(assignment, roomMap);
+    const nextAssignment = toLocalAssignment(assignment, roomMap, studentsPerInvigilator);
 
     if (existing) {
       existing.assignments.push(nextAssignment);
@@ -323,6 +331,7 @@ function toBulkAssignmentRequest(
     chiefInvigilatorId: assignment.chiefInvigilatorId,
     isLocked: assignment.locked,
     invigilatorIds: assignment.invigilatorIds,
+    studentCount: assignment.studentCount ?? null,
   };
 }
 
@@ -347,6 +356,7 @@ function matchesPersistedAssignment(payload: BulkAssignmentRequest, assignment: 
     && (payload.subjectCode ?? null) === (assignment.subjectCode ?? null)
     && (payload.chiefInvigilatorId ?? null) === (assignment.chiefInvigilatorId ?? null)
     && payload.isLocked === assignment.locked
+    && (payload.studentCount ?? null) === (assignment.studentCount ?? null)
     && sameInvigilatorList(payload.invigilatorIds, persistedInvigilators)
   );
 }
@@ -392,6 +402,8 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     scheduleGroupId: activeGroupId ?? undefined,
   } satisfies AssignmentsQuery;
   const hasActiveGroup = Boolean(activeGroupId);
+  const settingsQuery = useSettingsQuery();
+  const studentsPerInvigilator = settingsQuery.data?.studentsPerInvigilator ?? 0;
 
   const peopleQueryParams = {
     ...PEOPLE_QUERY_PARAMS,
@@ -476,11 +488,11 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setSchedule(toScheduleEntries(assignmentsQuery.data.items, rooms));
+    setSchedule(toScheduleEntries(assignmentsQuery.data.items, rooms, studentsPerInvigilator));
     setHistory([]);
     setDirtyEntryKeys([]);
     scheduleInitializedRef.current = true;
-  }, [assignmentsQuery.data, rooms]);
+  }, [assignmentsQuery.data, rooms, studentsPerInvigilator]);
 
   const getEntry = useCallback((date: string, slotId: string) => schedule.find((e) => e.date === date && e.slotId === slotId), [schedule]);
 
@@ -546,7 +558,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       ];
 
       const nextRooms = rooms;
-      const synchronizedEntry = toScheduleEntries(savedAssignments, nextRooms).find(
+      const synchronizedEntry = toScheduleEntries(savedAssignments, nextRooms, studentsPerInvigilator).find(
         (entry) => entry.date === date && entry.slotId === slotId,
       );
 
@@ -586,7 +598,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsPersisting(false);
     }
-  }, [activeGroupId, getEntry, queryClient, rooms, syncDirtyEntry]);
+  }, [activeGroupId, getEntry, queryClient, rooms, studentsPerInvigilator, syncDirtyEntry]);
 
   const persistSlotPatch = useCallback(async (slotId: string, patch: Partial<Omit<Slot, "id">>) => {
     const currentSlot = slots.find((slot) => slot.id === slotId);
@@ -653,6 +665,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
           locked: assignment.locked,
           subjectName: normalizeText(assignment.subjectName),
           subjectCode: normalizeText(assignment.subjectCode),
+          studentCount: assignment.studentCount ?? null,
         })),
       }));
 
@@ -664,6 +677,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
         locked: assignment.locked,
         subjectName: assignment.subjectName ?? undefined,
         subjectCode: assignment.subjectCode ?? undefined,
+        studentCount: assignment.studentCount ?? null,
       })));
 
       applySchedule((prev) => {
@@ -722,7 +736,18 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   };
 
   const updateAssignmentSubject: Ctx["updateAssignmentSubject"] = (date, slotId, roomId, patch) => {
-    applySchedule((prev) => prev.map((e) => e.date === date && e.slotId === slotId ? { ...e, assignments: e.assignments.map((a) => a.roomId === roomId ? { ...a, ...patch } : a) } : e), { date, slotId });
+    const room = rooms.find((r) => r.id === roomId);
+    applySchedule((prev) => prev.map((e) => e.date === date && e.slotId === slotId ? {
+      ...e,
+      assignments: e.assignments.map((a) => {
+        if (a.roomId !== roomId) return a;
+        const next = { ...a, ...patch, invigilatorIds: [...a.invigilatorIds] };
+        // More students may require more invigilator seats.
+        const required = room ? requiredInvigilators(room, next.studentCount, studentsPerInvigilator) : 0;
+        while (next.invigilatorIds.length < required) next.invigilatorIds.push(null);
+        return next;
+      }),
+    } : e), { date, slotId });
   };
 
   const addRoomToSlot: Ctx["addRoomToSlot"] = (date, slotId, roomId) => {
@@ -794,6 +819,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     staff,
     day: entry.day,
     overlappingAssignments: overlappingForEntry(entry),
+    studentsPerInvigilator,
   });
   const validateOne: Ctx["validateOne"] = (entry, assignment) => validateAssignment(
     assignment,
@@ -802,6 +828,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     staff,
     entry.day,
     overlappingForEntry(entry),
+    studentsPerInvigilator,
   );
   const setStaffWorkingDays: Ctx["setStaffWorkingDays"] = (id, days) => setStaff((prev) => prev.map((s) => s.id === id ? { ...s, workingDays: days } : s));
   const addStaff: Ctx["addStaff"] = (s) => setStaff((prev) => [...prev, { ...s, id: `${s.role === "CHIEF_INVIGILATOR" ? "C" : "I"}${Date.now()}`, totalAssignments: 0, maxParallelRooms: s.role === "CHIEF_INVIGILATOR" ? 2 : 1 }]);
@@ -810,7 +837,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   const removeRoom: Ctx["removeRoom"] = (id) => setRooms((prev) => prev.filter((r) => r.id !== id));
 
   const value = useMemo<Ctx>(() => ({
-    staff, rooms, slots, schedule, isLoading, isPersisting, isGenerating, error, isEntryDirty, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign,
+    staff, rooms, slots, schedule, isLoading, isPersisting, isGenerating, studentsPerInvigilator, error, isEntryDirty, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign,
     addInvigilatorSlot, removeInvigilatorSlot, updateAssignmentSubject, addRoomToSlot, swapInvigilators, saveEntry, undoLastChange, resetSlotToGenerated, getEntry, validateEntry, validateOne,
   }), [
     addInvigilatorSlot,
@@ -835,6 +862,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     setStaffWorkingDays,
     slots,
     staff,
+    studentsPerInvigilator,
     swapInvigilators,
     toggleLock,
     undoLastChange,

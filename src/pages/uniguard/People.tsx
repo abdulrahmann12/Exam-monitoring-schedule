@@ -265,9 +265,13 @@ function PersonDialog({
     email: "",
     role: "CHIEF_INVIGILATOR",
     availableDays: DEFAULT_AVAILABLE_DAYS,
+    gender: null,
+    subjectCodes: [],
   });
+  const [subjectCodesText, setSubjectCodesText] = useState("");
 
   useEffect(() => {
+    setSubjectCodesText((initialValue?.subjectCodes ?? []).join(", "));
     setFormState(
       initialValue
         ? {
@@ -276,6 +280,8 @@ function PersonDialog({
             email: initialValue.email ?? "",
             role: initialValue.role,
             availableDays: initialValue.availableDays,
+            gender: initialValue.gender ?? null,
+            subjectCodes: initialValue.subjectCodes ?? [],
           }
         : {
             name: "",
@@ -283,6 +289,8 @@ function PersonDialog({
             email: "",
             role: "CHIEF_INVIGILATOR",
             availableDays: DEFAULT_AVAILABLE_DAYS,
+            gender: null,
+            subjectCodes: [],
           },
     );
   }, [initialValue, open]);
@@ -338,6 +346,27 @@ function PersonDialog({
             <Label className="mb-2 block">Available days</Label>
             <DayBadges value={formState.availableDays} onChange={(nextDays) => setFormState((previous) => ({ ...previous, availableDays: nextDays as WeekDay[] }))} />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="person-gender">Gender</Label>
+              <select
+                id="person-gender"
+                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={formState.gender ?? ""}
+                onChange={(event) => setFormState((previous) => ({ ...previous, gender: (event.target.value || null) as PersonRequest["gender"] }))}
+              >
+                <option value="">Not set</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">Needed only for male/female halls.</p>
+            </div>
+            <div>
+              <Label htmlFor="person-subjects">Subjects taught</Label>
+              <Input id="person-subjects" value={subjectCodesText} onChange={(event) => setSubjectCodesText(event.target.value)} placeholder="e.g. MATH101, CS301" />
+              <p className="mt-1 text-[11px] text-muted-foreground">Won't invigilate these exams.</p>
+            </div>
+          </div>
           {initialValue && <UnavailabilityPanel personId={initialValue.id} />}
         </div>
         <DialogFooter>
@@ -349,6 +378,7 @@ function PersonDialog({
               name: formState.name.trim(),
               department: formState.department.trim(),
               email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
+              subjectCodes: subjectCodesText.split(",").map((code) => code.trim().toUpperCase()).filter(Boolean),
             })}
           >
             {isSubmitting ? "Saving..." : `Save ${roleLabel(formState.role as PersonRole)}`}

@@ -23,6 +23,9 @@ const DEFAULT_SETTINGS_FORM: SettingsRequest = {
   department: "",
   examPeriod: "",
   maxDutiesPerDay: 0,
+  maxDutiesPerPeriod: 0,
+  minRestMinutes: 0,
+  studentsPerInvigilator: 0,
 };
 
 export default function Settings() {
@@ -42,6 +45,9 @@ export default function Settings() {
       department: formState.department?.trim() || null,
       examPeriod: settingsQuery.data?.examPeriod?.trim() || formState.examPeriod.trim(),
       maxDutiesPerDay: Math.max(0, Math.trunc(formState.maxDutiesPerDay ?? 0)),
+      maxDutiesPerPeriod: Math.max(0, Math.trunc(formState.maxDutiesPerPeriod ?? 0)),
+      minRestMinutes: Math.max(0, Math.trunc(formState.minRestMinutes ?? 0)),
+      studentsPerInvigilator: Math.max(0, Math.trunc(formState.studentsPerInvigilator ?? 0)),
     }),
     [formState, settingsQuery.data?.examPeriod],
   );
@@ -60,6 +66,9 @@ export default function Settings() {
       department: settingsQuery.data.department ?? "",
       examPeriod: settingsQuery.data.examPeriod,
       maxDutiesPerDay: settingsQuery.data.maxDutiesPerDay ?? 0,
+      maxDutiesPerPeriod: settingsQuery.data.maxDutiesPerPeriod ?? 0,
+      minRestMinutes: settingsQuery.data.minRestMinutes ?? 0,
+      studentsPerInvigilator: settingsQuery.data.studentsPerInvigilator ?? 0,
     });
   }, [settingsQuery.data]);
 
@@ -146,6 +155,30 @@ export default function Settings() {
             />
             <p className="mt-1 text-xs text-muted-foreground">0 = unlimited. Rooms covered at the same time count as one session.</p>
           </div>
+          <NumberSetting
+            id="max-duties-per-period"
+            label="Max duty sessions per person per exam period"
+            hint="0 = unlimited. Counts every day of the selected exam period."
+            max={500}
+            value={formState.maxDutiesPerPeriod ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, maxDutiesPerPeriod: value }))}
+          />
+          <NumberSetting
+            id="min-rest-minutes"
+            label="Minimum rest between sessions (minutes)"
+            hint="0 = none. Applies to two sessions of the same person on one day."
+            max={600}
+            value={formState.minRestMinutes ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, minRestMinutes: value }))}
+          />
+          <NumberSetting
+            id="students-per-invigilator"
+            label="Students per invigilator"
+            hint="0 = use each room's minimum. Otherwise a room with a student count needs max(minimum, students ÷ this) invigilators."
+            max={1000}
+            value={formState.studentsPerInvigilator ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, studentsPerInvigilator: value }))}
+          />
         </section>
 
         <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
@@ -209,5 +242,15 @@ function ThemeCard({
       <div className="text-sm font-semibold">{title}</div>
       <div className="text-[11px] text-muted-foreground">{description}</div>
     </button>
+  );
+}
+
+function NumberSetting({ id, label, hint, max, value, onChange }: { id: string; label: string; hint: string; max: number; value: number; onChange: (value: number) => void }) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} type="number" min={0} max={max} value={value} onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))} />
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+    </div>
   );
 }

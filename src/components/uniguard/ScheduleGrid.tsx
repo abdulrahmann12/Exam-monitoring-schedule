@@ -4,7 +4,7 @@ import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateC
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { overlappingAssignmentsForSlot } from "@/lib/uniguard/constraintEngine";
-import { AssignmentState, dayOfDate, roleLabelAr } from "@/lib/uniguard/types";
+import { AssignmentState, dayOfDate, requiredInvigilators, roleLabelAr, type Staff } from "@/lib/uniguard/types";
 import { StaffPicker } from "./StaffPicker";
 import { StaffProfileDialog } from "./StaffProfileDialog";
 import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function ScheduleGrid({ date, slotId }: Props) {
-  const { getEntry, rooms, staff, slots, schedule, manualAssign, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot } = useUniGuard();
+  const { getEntry, rooms, staff, slots, schedule, manualAssign, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot, studentsPerInvigilator } = useUniGuard();
   const entry = getEntry(date, slotId);
   const slot = slots.find((s) => s.id === slotId);
   const day = dayOfDate(date);
@@ -111,6 +111,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
             if (!room) return null;
             const chief = assignment.chiefInvigilatorId ? staffMap.get(assignment.chiefInvigilatorId) : null;
             const assignmentValidation = validateOne(entry, assignment);
+            const required = requiredInvigilators(room, assignment.studentCount, studentsPerInvigilator);
             return (
               <section key={assignment.roomId} className={cn("p-4 transition-smooth", stateSurface(assignmentValidation.state), assignment.locked && "bg-warning/5")}>
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
@@ -118,14 +119,16 @@ export function ScheduleGrid({ date, slotId }: Props) {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="font-semibold text-foreground">{room.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">Cap. {room.capacity} · Min {room.minInvigilators} invigilator{room.minInvigilators > 1 ? "s" : ""}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Cap. {room.capacity} · Needs {required} invigilator{required > 1 ? "s" : ""}{room.hallGender && room.hallGender !== "MIXED" ? ` · ${room.hallGender.toLowerCase()} hall` : ""}</div>
                       </div>
                       <StateBadge state={assignmentValidation.state} compact />
                     </div>
                     <SubjectEditor
                       name={assignment.subjectName ?? slot?.subjectName ?? ""}
                       code={assignment.subjectCode ?? slot?.subjectCode ?? ""}
-                      onSave={(name, code) => { updateAssignmentSubject(date, slotId, assignment.roomId, { subjectName: name, subjectCode: code }); toast.success("Subject updated"); }}
+                      students={assignment.studentCount ?? null}
+                      capacity={room.capacity}
+                      onSave={(name, code, students) => { updateAssignmentSubject(date, slotId, assignment.roomId, { subjectName: name, subjectCode: code, studentCount: students }); toast.success("Exam details updated"); }}
                     />
                     {assignmentValidation.issues.length > 0 && (
                       <div className="mt-2 space-y-1">
@@ -144,7 +147,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                         avgLoad={avgLoad}
                         missing={!chief}
                         onProfile={() => chief && setProfileId(chief.id)}
-                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} slotAssignments={pickerAssignments} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
+                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
                       />
                     </div>
 
@@ -158,7 +161,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                         {assignment.invigilatorIds.map((id, index) => {
                           const person = id ? staffMap.get(id) : null;
-                          const belowMinAfterRemove = assignment.invigilatorIds.length - 1 < room.minInvigilators;
+                          const belowMinAfterRemove = assignment.invigilatorIds.length - 1 < required;
                           return (
                             <DroppableInvigilator key={index} roomId={assignment.roomId} idx={index}>
                               <DraggableInvigilator roomId={assignment.roomId} idx={index} disabled={!person}>
@@ -166,9 +169,9 @@ export function ScheduleGrid({ date, slotId }: Props) {
                                   person={person ?? null}
                                   tone="invigilator"
                                   avgLoad={avgLoad}
-                                  missing={!person && index < room.minInvigilators}
+                                  missing={!person && index < required}
                                   onProfile={() => person && setProfileId(person.id)}
-                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} slotAssignments={pickerAssignments} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
+                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
                                   leading={person ? <GripVertical className="h-3.5 w-3.5 text-invigilator/50 shrink-0" /> : null}
                                   trailing={
                                     <button
@@ -211,7 +214,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
   );
 }
 
-function StaffCell({ person, tone, shared, avgLoad, missing, picker, onProfile, leading, trailing }: { person: any; tone: "chief" | "invigilator"; shared?: boolean; avgLoad: number; missing?: boolean; picker: React.ReactNode; onProfile: () => void; leading?: React.ReactNode; trailing?: React.ReactNode }) {
+function StaffCell({ person, tone, shared, avgLoad, missing, picker, onProfile, leading, trailing }: { person: Staff | null; tone: "chief" | "invigilator"; shared?: boolean; avgLoad: number; missing?: boolean; picker: React.ReactNode; onProfile: () => void; leading?: React.ReactNode; trailing?: React.ReactNode }) {
   const overAssigned = person && person.totalAssignments > Math.max(2, Math.ceil(avgLoad * 1.5));
   return (
     <div className={cn("relative group flex items-center gap-2 rounded-lg px-2.5 py-2 min-h-12 border transition-smooth", tone === "chief" ? "bg-chief-soft hover:bg-chief-soft/80" : "bg-invigilator-soft hover:bg-invigilator-soft/80", missing && "bg-destructive/5 border-dashed border-destructive/40")}>
@@ -259,19 +262,28 @@ function initials(name: string) {
   return name.replace(/^Dr\.\s*/, "").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function SubjectEditor({ name, code, onSave }: { name: string; code: string; onSave: (name: string, code: string) => void }) {
+function SubjectEditor({ name, code, students, capacity, onSave }: {
+  name: string;
+  code: string;
+  students: number | null;
+  capacity: number;
+  onSave: (name: string, code: string, students: number | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [n, setN] = useState(name);
   const [c, setC] = useState(code);
+  const [s, setS] = useState(students == null ? "" : String(students));
+  const parsedStudents = s.trim() === "" ? null : Math.trunc(Number(s));
+  const studentsInvalid = parsedStudents != null && (Number.isNaN(parsedStudents) || parsedStudents < 0 || parsedStudents > capacity);
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) { setN(name); setC(code); } }}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) { setN(name); setC(code); setS(students == null ? "" : String(students)); } }}>
       <PopoverTrigger asChild>
         <button className="mt-2 w-full text-left rounded-md border border-border bg-muted/40 hover:bg-muted/60 transition-smooth px-2 py-1.5">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
             <BookOpen className="h-3 w-3" /> Subject
           </div>
           <div className="text-xs font-medium truncate">{name || <span className="text-muted-foreground italic">Click to set subject</span>}</div>
-          {code && <div className="text-[10px] text-muted-foreground font-mono">{code}</div>}
+          {(code || students != null) && <div className="text-[10px] text-muted-foreground font-mono">{[code, students != null ? `${students} students` : ""].filter(Boolean).join(" · ")}</div>}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 bg-popover" align="start">
@@ -284,9 +296,14 @@ function SubjectEditor({ name, code, onSave }: { name: string; code: string; onS
             <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Subject code</label>
             <Input value={c} onChange={(e) => setC(e.target.value)} placeholder="e.g. CS301" />
           </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Students (optional)</label>
+            <Input type="number" min={0} max={capacity} value={s} onChange={(e) => setS(e.target.value)} placeholder={`up to ${capacity}`} />
+            {studentsInvalid && <p className="mt-1 text-[11px] text-destructive">Between 0 and the room capacity ({capacity}).</p>}
+          </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => { onSave(n.trim(), c.trim()); setOpen(false); }}>Save</Button>
+            <Button size="sm" disabled={studentsInvalid} onClick={() => { onSave(n.trim(), c.trim(), parsedStudents); setOpen(false); }}>Save</Button>
           </div>
         </div>
       </PopoverContent>
