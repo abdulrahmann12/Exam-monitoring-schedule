@@ -138,7 +138,7 @@ export default function Settings() {
           </div>
         </fieldset>
 
-        {!isDemo && <ChangePasswordCard />}
+        {!isDemo && <ChangePasswordCard showSignOutEverywhere />}
 
         <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>

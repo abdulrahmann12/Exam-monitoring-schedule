@@ -1,6 +1,5 @@
 import axios from "axios";
 
-import { applyRequestInterceptor } from "../interceptors/requestInterceptor";
 import { applyResponseInterceptor } from "../interceptors/responseInterceptor";
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -17,11 +16,14 @@ export const API_TARGET_URL = import.meta.env.DEV
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  // Sign-in lives in HttpOnly cookies set by the server; the browser attaches them itself.
+  withCredentials: true,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
+    // Required by the server on every change (anti-forgery). Other websites cannot add it.
+    "X-Requested-With": "XMLHttpRequest",
   },
 });
 
-applyRequestInterceptor(apiClient);
 applyResponseInterceptor(apiClient);

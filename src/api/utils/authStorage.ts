@@ -1,54 +1,32 @@
-import type { AuthSession } from "../types";
+/**
+ * Sign-in no longer keeps anything in browser storage: the server sets HttpOnly cookies that page
+ * scripts cannot read. This module only removes what older versions of the app stored, and lets
+ * the auth state react when the server session ends.
+ */
 
-export const AUTH_STORAGE_KEY = "uniguard.auth.session";
+/** Key used by versions before cookie sign-in (the access token used to live here). */
+export const LEGACY_AUTH_STORAGE_KEY = "uniguard.auth.session";
 
-function getStorage(): Storage | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage;
-}
-
-export function getStoredAuthSession(): AuthSession | null {
+export function clearLegacyAuthStorage(): void {
   try {
-    const rawSession = getStorage()?.getItem(AUTH_STORAGE_KEY);
-    return rawSession ? (JSON.parse(rawSession) as AuthSession) : null;
+    window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
   } catch {
-    return null;
+    // Storage may be blocked (private mode); nothing to clean up then.
   }
 }
 
-export function setStoredAuthSession(session: AuthSession): void {
-  try {
-    getStorage()?.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
-  } catch {
-    // Ignore storage failures so request handling remains non-blocking.
-  }
+type SessionEndedListener = () => void;
+
+const listeners = new Set<SessionEndedListener>();
+
+/** Called by the API layer when the session is gone and could not be renewed. */
+export function notifySessionEnded(): void {
+  listeners.forEach((listener) => listener());
 }
 
-export function clearStoredAuthSession(): void {
-  try {
-    getStorage()?.removeItem(AUTH_STORAGE_KEY);
-  } catch {
-    // Ignore storage failures so logout never blocks the UI.
-  }
-}
-
-export function getStoredAccessToken(): string | null {
-  return getStoredAuthSession()?.accessToken ?? null;
-}
-
-export function isAuthSessionExpired(session: AuthSession | null = getStoredAuthSession()): boolean {
-  if (!session?.expiresAt) {
-    return false;
-  }
-
-  const expiresAt = Date.parse(session.expiresAt);
-  return Number.isFinite(expiresAt) ? expiresAt <= Date.now() : false;
-}
-
-export function hasStoredValidAuthSession(): boolean {
-  const session = getStoredAuthSession();
-  return Boolean(session?.accessToken) && !isAuthSessionExpired(session);
+export function onSessionEnded(listener: SessionEndedListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }

@@ -5,11 +5,14 @@ export interface LoginRequest {
   password: string;
 }
 
+/**
+ * Answer to sign-in / renewal. The tokens themselves are HttpOnly cookies and never reach
+ * JavaScript; this only says who signed in and until when.
+ */
 export interface AuthResponse {
-  accessToken: string;
-  tokenType: string;
-  expiresAt: ISOInstant;
   email: string;
+  accessExpiresAt: ISOInstant;
+  sessionExpiresAt: ISOInstant | null;
 }
 
 /** ADMIN = everything; SCHEDULER = edit schedules; VIEWER = read-only; DEMO_ADMIN = public demo. */
