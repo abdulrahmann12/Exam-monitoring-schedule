@@ -12,6 +12,7 @@ import Scheduler from "@/pages/uniguard/Scheduler";
 import Settings from "@/pages/uniguard/Settings";
 import TimeSlots from "@/pages/uniguard/TimeSlots";
 import Timeline from "@/pages/uniguard/Timeline";
+import Activity from "@/pages/uniguard/Activity";
 import Users from "@/pages/uniguard/Users";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
@@ -55,6 +56,7 @@ export function AppRoutes() {
         <Route path="/settings" element={<Settings />} />
         <Route element={<RequirePermission permission="canManageUsers" />}>
           <Route path="/users" element={<Users />} />
+          <Route path="/activity" element={<Activity />} />
         </Route>
       </Route>
 

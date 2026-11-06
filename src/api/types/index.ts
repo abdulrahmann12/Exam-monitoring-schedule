@@ -8,3 +8,4 @@ export * from "./scheduleGroups";
 export * from "./settings";
 export * from "./timeSlots";
 export * from "./users";
+export * from "./audit";

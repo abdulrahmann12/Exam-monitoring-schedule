@@ -41,6 +41,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/activity",
+      "destination": "/index.html"
+    },
+    {
       "source": "/forgot-password",
       "destination": "/index.html"
     },

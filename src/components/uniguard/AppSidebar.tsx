@@ -1,4 +1,4 @@
-import { CalendarRange, Clock3, DoorOpen, LayoutDashboard, ListOrdered, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -19,7 +19,10 @@ const items = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-const adminItems = [{ title: "Users", url: "/users", icon: UserCog }];
+const adminItems = [
+  { title: "Users", url: "/users", icon: UserCog },
+  { title: "Activity", url: "/activity", icon: History },
+];
 
 export function AppSidebar() {
   const { state } = useSidebar();
