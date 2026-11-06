@@ -42,4 +42,22 @@ describe("redirectToLogin", () => {
 
     expect(replaceSpy).not.toHaveBeenCalled();
   });
+
+  it.each(["/reset-password", "/reset-password/", "/forgot-password"])(
+    "keeps a signed-out visitor on the public page %s (email password links)",
+    (path) => {
+      const navigate = vi.fn();
+      const unregister = registerNavigationHandler(navigate);
+      const replaceSpy = vi.spyOn(navigationRuntime, "replaceLocation").mockImplementation(() => {});
+
+      window.history.replaceState({}, "", path);
+
+      redirectToLogin();
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(replaceSpy).not.toHaveBeenCalled();
+
+      unregister();
+    },
+  );
 });
