@@ -19,6 +19,13 @@ describe("role permissions (UI only; the server enforces the same rules)", () =>
     expect(permissionsFor("DEMO_ADMIN")).toMatchObject({ canEdit: true, canManageUsers: false });
   });
 
+  it("the platform owner gets no university rights, only the owner panel", () => {
+    expect(permissionsFor("SUPER_ADMIN")).toMatchObject({ isOwner: true, canEdit: false, canEditSettings: false, canManageUsers: false });
+    expect(permissionsFor("ADMIN").isOwner).toBe(false);
+    expect(resolveRole({ roles: ["ROLE_SUPER_ADMIN"] })).toBe("SUPER_ADMIN");
+    expect(roleLabel("SUPER_ADMIN")).toBe("Platform owner");
+  });
+
   it("no known role means no rights", () => {
     expect(permissionsFor(null)).toMatchObject({ canEdit: false, canEditSettings: false, canManageUsers: false });
     expect(resolveRole({ roles: ["ROLE_SOMETHING_ELSE"] })).toBeNull();

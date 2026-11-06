@@ -2,7 +2,7 @@ import type { ISOInstant, UUID } from "./api";
 import type { UserRole } from "./auth";
 
 /** Roles an administrator can give (the demo role is system-managed). */
-export type AssignableRole = Exclude<UserRole, "DEMO_ADMIN">;
+export type AssignableRole = Exclude<UserRole, "DEMO_ADMIN" | "SUPER_ADMIN">;
 
 export interface AppUser {
   id: UUID;

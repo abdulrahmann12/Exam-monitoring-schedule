@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { DemoModeBanner } from "@/components/uniguard/DemoModeBanner";
 import ForcePasswordChange from "@/pages/auth/ForcePasswordChange";
+import { resolveRole } from "@/hooks/usePermissions";
 import { useAuth } from "@/state/auth";
 import { ScheduleGroupProvider } from "@/state/scheduleGroup";
 
@@ -31,6 +32,11 @@ export function ProtectedRoute() {
   // The server refuses everything else until the temporary password is replaced.
   if (user?.mustChangePassword) {
     return <ForcePasswordChange />;
+  }
+
+  // The platform owner belongs to no university: it only has the owner panel.
+  if (resolveRole(user) === "SUPER_ADMIN") {
+    return <Navigate to="/owner" replace />;
   }
 
   return (

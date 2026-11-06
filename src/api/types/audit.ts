@@ -1,6 +1,6 @@
 import type { ISOInstant, UUID } from "./api";
 
-export type AuditCategory = "AUTH" | "SECURITY" | "USERS" | "PEOPLE" | "ROOMS" | "TIME_SLOTS" | "SCHEDULES" | "SETTINGS" | "OTHER";
+export type AuditCategory = "AUTH" | "SECURITY" | "USERS" | "PEOPLE" | "ROOMS" | "TIME_SLOTS" | "SCHEDULES" | "SETTINGS" | "PLATFORM" | "OTHER";
 export type AuditOutcome = "SUCCESS" | "FAILURE" | "DENIED";
 
 export interface AuditEvent {

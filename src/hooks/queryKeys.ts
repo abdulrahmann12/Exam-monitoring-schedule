@@ -2,6 +2,11 @@ export const queryKeys = {
   users: {
     all: ["users"] as const,
   },
+  owner: {
+    all: ["owner"] as const,
+    overview: ["owner", "overview"] as const,
+    activity: ["owner", "activity"] as const,
+  },
   auth: {
     all: ["auth"] as const,
     session: (token?: string | null) => ["auth", "session", token ?? null] as const,

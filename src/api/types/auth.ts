@@ -15,8 +15,11 @@ export interface AuthResponse {
   sessionExpiresAt: ISOInstant | null;
 }
 
-/** ADMIN = everything; SCHEDULER = edit schedules; VIEWER = read-only; DEMO_ADMIN = public demo. */
-export type UserRole = "ADMIN" | "SCHEDULER" | "VIEWER" | "DEMO_ADMIN";
+/**
+ * ADMIN = everything; SCHEDULER = edit schedules; VIEWER = read-only; DEMO_ADMIN = public demo;
+ * SUPER_ADMIN = platform owner (owner panel only, belongs to no university).
+ */
+export type UserRole = "ADMIN" | "SCHEDULER" | "VIEWER" | "DEMO_ADMIN" | "SUPER_ADMIN";
 
 export interface CurrentSession {
   id?: string;

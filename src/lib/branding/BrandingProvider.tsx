@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Settings } from "@/api";
 import { settingsService } from "@/services";
+import { resolveRole } from "@/hooks/usePermissions";
 import { useAuth } from "@/state/auth";
 import { unwrapServiceResponse } from "@/utils/serviceResponse";
 
@@ -48,7 +49,9 @@ function applySettingsToBranding(settings: Settings): Branding {
 }
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  // The platform owner has no university, hence no university settings to load.
+  const hasUniversity = isAuthenticated && resolveRole(user) !== "SUPER_ADMIN";
   const queryClient = useQueryClient();
   const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
 
@@ -65,7 +68,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const settingsQuery = useQuery({
     queryKey: ["settings", "detail"],
     queryFn: async () => unwrapServiceResponse(await settingsService.getSettings()),
-    enabled: isAuthenticated,
+    enabled: hasUniversity,
     refetchOnWindowFocus: true,
   });
 

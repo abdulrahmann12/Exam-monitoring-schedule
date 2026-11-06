@@ -14,8 +14,10 @@ import TimeSlots from "@/pages/uniguard/TimeSlots";
 import Timeline from "@/pages/uniguard/Timeline";
 import Activity from "@/pages/uniguard/Activity";
 import Users from "@/pages/uniguard/Users";
+import OwnerPanel from "@/pages/owner/OwnerPanel";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
+import { OwnerRoute } from "./OwnerRoute";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { RequirePermission } from "./RequirePermission";
@@ -58,6 +60,10 @@ export function AppRoutes() {
           <Route path="/users" element={<Users />} />
           <Route path="/activity" element={<Activity />} />
         </Route>
+      </Route>
+
+      <Route element={<OwnerRoute />}>
+        <Route path="/owner" element={<OwnerPanel />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />

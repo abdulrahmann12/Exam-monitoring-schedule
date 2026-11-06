@@ -10,4 +10,5 @@ export * from "./useSettings";
 export * from "./useTimeSlots";
 export * from "./usePermissions";
 export * from "./useUsers";
+export * from "./useOwner";
 
