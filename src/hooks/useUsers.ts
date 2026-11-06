@@ -37,6 +37,10 @@ export function useUpdateUserMutation() {
     unwrapServiceResponse(await usersService.updateUser(id, payload)));
 }
 
+export function useResetTwoFactorMutation() {
+  return useUsersMutation(async (id: UUID) => unwrapServiceResponse(await usersService.resetTwoFactor(id)));
+}
+
 export function useUnlockUserMutation() {
   return useUsersMutation(async (id: UUID) => unwrapServiceResponse(await usersService.unlockUser(id)));
 }

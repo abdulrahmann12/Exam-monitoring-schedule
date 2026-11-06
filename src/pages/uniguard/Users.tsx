@@ -1,4 +1,4 @@
-import { Copy, KeyRound, LockOpen, MailCheck, MailWarning, PencilLine, Plus, Send, ShieldCheck, Trash2, UserCog, Wand2 } from "lucide-react";
+import { Copy, KeyRound, LockOpen, MailCheck, MailWarning, PencilLine, Plus, Send, ShieldCheck, Smartphone, Trash2, UserCog, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ import {
   useCreateUserMutation,
   useDeleteUserMutation,
   useInviteUserMutation,
+  useResetTwoFactorMutation,
   useResetUserPasswordMutation,
   useUnlockUserMutation,
   useUpdateUserMutation,
@@ -78,6 +79,8 @@ export default function Users() {
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [resetting, setResetting] = useState<AppUser | null>(null);
   const [deleting, setDeleting] = useState<AppUser | null>(null);
+  const [resettingTwoFactor, setResettingTwoFactor] = useState<AppUser | null>(null);
+  const resetTwoFactorMutation = useResetTwoFactorMutation();
 
   const isSelf = (user: AppUser) => user.id === me?.id || user.email.toLowerCase() === me?.email.toLowerCase();
 
@@ -119,6 +122,19 @@ export default function Users() {
       setInviteResult(await inviteMutation.mutateAsync(user.id));
     } catch (error) {
       showErrorToast(error, { title: "Could not send the invitation." });
+    }
+  }
+
+  async function confirmResetTwoFactor() {
+    if (!resettingTwoFactor) {
+      return;
+    }
+    try {
+      await resetTwoFactorMutation.mutateAsync(resettingTwoFactor.id);
+      toast.success(`Two-step sign-in removed for ${resettingTwoFactor.email}. They were signed out.`);
+      setResettingTwoFactor(null);
+    } catch (error) {
+      showErrorToast(error, { title: "Could not reset two-step sign-in." });
     }
   }
 
@@ -182,6 +198,7 @@ export default function Users() {
                         )}
                         {user.invitePending && <Badge variant="outline" className="border-primary/30 text-primary">Invitation sent</Badge>}
                         {user.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
+                        {user.twoFactorEnabled && <Badge variant="outline" className="border-success/30 text-success">Two-step on</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(user.lastLoginAt)}</td>
@@ -199,6 +216,14 @@ export default function Users() {
                             onClick={() => void resendInvite(user)}
                           >
                             <Send className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!self && user.twoFactorEnabled && (
+                          <Button
+                            size="icon" variant="ghost" aria-label={`Reset two-step sign-in of ${user.email}`}
+                            title="Lost phone: remove two-step sign-in" onClick={() => setResettingTwoFactor(user)}
+                          >
+                            <Smartphone className="h-4 w-4" />
                           </Button>
                         )}
                         <Button size="icon" variant="ghost" aria-label={`Edit ${user.email}`} onClick={() => setEditing(user)}>
@@ -232,6 +257,24 @@ export default function Users() {
       {inviteResult && <InviteLinkDialog result={inviteResult} onClose={() => setInviteResult(null)} />}
       {editing && <EditUserDialog user={editing} isSelf={isSelf(editing)} onClose={() => setEditing(null)} />}
       {resetting && <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />}
+
+      <AlertDialog open={Boolean(resettingTwoFactor)} onOpenChange={(open) => !open && setResettingTwoFactor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset two-step sign-in for {resettingTwoFactor?.email}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Use this when the person lost their phone and their recovery codes. Confirm who is asking first.
+              They are signed out everywhere, then sign in with their password only and should set it up again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={resetTwoFactorMutation.isPending} onClick={(event) => { event.preventDefault(); void confirmResetTwoFactor(); }}>
+              Reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>

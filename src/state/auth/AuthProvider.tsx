@@ -9,7 +9,8 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { AuthResponse, CurrentSession, LoginRequest, ServiceResponse } from "@/api";
+import type { AuthResponse, CurrentSession, LoginOutcome, LoginRequest, ServiceResponse } from "@/api";
+import { twoFactorService } from "@/api";
 import { clearLegacyAuthStorage, onSessionEnded } from "@/api/utils/authStorage";
 import { clearDemoSandbox, syncDemoSandboxUser } from "@/api/utils/demoSandbox";
 import { LOGIN_ROUTE, redirectToLogin, registerNavigationHandler } from "@/api/utils/navigation";
@@ -22,7 +23,11 @@ interface AuthContextValue {
   isRestoring: boolean;
   isLoggingIn: boolean;
   isStartingDemo: boolean;
-  login: (payload: LoginRequest) => Promise<void>;
+  isVerifyingTwoFactor: boolean;
+  /** "two-factor" when the password was right and the code from the app is still needed. */
+  login: (payload: LoginRequest) => Promise<LoginOutcome | null>;
+  /** Second step of sign-in: code from the authenticator app, or a recovery code. */
+  verifyTwoFactor: (code: string) => Promise<void>;
   loginWithDemo: () => Promise<void>;
   logout: () => Promise<void>;
   /** Signs this account out on every device (including this one). */
@@ -88,18 +93,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  const finishSignIn = useCallback(async () => {
+    // Data cached for a previous user must never show up for this one.
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "auth" });
+    const currentUser = await fetchCurrentUser();
+    if (!currentUser) {
+      throw new Error("Signed in, but the browser did not keep the session cookie. Check that cookies are allowed for this site.");
+    }
+    return currentUser;
+  }, [fetchCurrentUser, queryClient]);
+
   const authenticate = useCallback(
     async (request: Promise<ServiceResponse<AuthResponse>>) => {
       unwrapServiceResponse(await request);
-      // Data cached for a previous user must never show up for this one.
-      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "auth" });
-      const currentUser = await fetchCurrentUser();
-      if (!currentUser) {
-        throw new Error("Signed in, but the browser did not keep the session cookie. Check that cookies are allowed for this site.");
-      }
-      return currentUser;
+      return finishSignIn();
     },
-    [fetchCurrentUser, queryClient],
+    [finishSignIn],
   );
 
   const onSignedIn = useCallback((currentUser: CurrentSession) => {
@@ -108,7 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const loginMutation = useMutation({
-    mutationFn: (payload: LoginRequest) => authenticate(authService.login(payload)),
+    mutationFn: async (payload: LoginRequest) => {
+      const answer = unwrapServiceResponse(await authService.login(payload));
+      // No session yet: the server is waiting for the code from the authenticator app.
+      return answer.twoFactorRequired ? null : finishSignIn();
+    },
+    onSuccess: (currentUser) => {
+      if (currentUser) {
+        onSignedIn(currentUser);
+      }
+    },
+  });
+
+  const twoFactorMutation = useMutation({
+    mutationFn: (code: string) => authenticate(twoFactorService.verify(code)),
     onSuccess: onSignedIn,
   });
 
@@ -122,12 +144,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isDemoLoginPending = demoLoginMutation.isPending;
   const runDemoLogin = demoLoginMutation.mutateAsync;
 
-  const login = useCallback(async (payload: LoginRequest) => {
+  const login = useCallback(async (payload: LoginRequest): Promise<LoginOutcome | null> => {
     if (isLoginPending || isDemoLoginPending) {
-      return;
+      return null;
     }
-    await runLogin(payload);
+    const currentUser = await runLogin(payload);
+    return currentUser ? "signed-in" : "two-factor";
   }, [isDemoLoginPending, isLoginPending, runLogin]);
+
+  const isVerifyingTwoFactor = twoFactorMutation.isPending;
+  const runVerify = twoFactorMutation.mutateAsync;
+  const verifyTwoFactor = useCallback(async (code: string) => {
+    await runVerify(code);
+  }, [runVerify]);
 
   const loginWithDemo = useCallback(async () => {
     if (isLoginPending || isDemoLoginPending) {
@@ -161,13 +190,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isRestoring: sessionQuery.isLoading,
       isLoggingIn: isLoginPending,
       isStartingDemo: isDemoLoginPending,
+      isVerifyingTwoFactor,
       login,
+      verifyTwoFactor,
       loginWithDemo,
       logout,
       logoutEverywhere,
       refreshSession,
     }),
-    [user, sessionQuery.isLoading, isLoginPending, isDemoLoginPending, login, loginWithDemo, logout, logoutEverywhere, refreshSession],
+    [user, sessionQuery.isLoading, isLoginPending, isDemoLoginPending, isVerifyingTwoFactor, login, verifyTwoFactor, loginWithDemo, logout, logoutEverywhere, refreshSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

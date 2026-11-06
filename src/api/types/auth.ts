@@ -11,9 +11,14 @@ export interface LoginRequest {
  */
 export interface AuthResponse {
   email: string;
-  accessExpiresAt: ISOInstant;
+  accessExpiresAt: ISOInstant | null;
   sessionExpiresAt: ISOInstant | null;
+  /** Password was right; the code from the authenticator app is still needed (no session yet). */
+  twoFactorRequired?: boolean;
 }
+
+/** What a password sign-in led to. */
+export type LoginOutcome = "signed-in" | "two-factor";
 
 /**
  * ADMIN = everything; SCHEDULER = edit schedules; VIEWER = read-only; DEMO_ADMIN = public demo;
@@ -33,6 +38,8 @@ export interface CurrentSession {
   /** The university the user belongs to; all data shown is that university's. */
   universityId?: string | null;
   universityName?: string | null;
+  /** Two-step sign-in is on for this account. */
+  twoFactorEnabled?: boolean;
 }
 
 export type AuthSession = AuthResponse;

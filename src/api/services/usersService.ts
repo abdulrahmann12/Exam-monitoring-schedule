@@ -32,6 +32,11 @@ async function resetPassword(id: UUID, temporaryPassword: string): Promise<Servi
   });
 }
 
+/** Lost phone: removes two-step sign-in; the user is signed out and can set it up again. */
+async function resetTwoFactor(id: UUID): Promise<ServiceResponse<AppUser>> {
+  return performRequest<AppUser>({ url: `${USERS_ENDPOINT}/${id}/reset-2fa`, method: "POST" });
+}
+
 async function deleteUser(id: UUID): Promise<ServiceResponse<null>> {
   return performRequest<unknown, null>({ url: `${USERS_ENDPOINT}/${id}`, method: "DELETE" }, () => null);
 }
@@ -43,5 +48,6 @@ export const usersService = {
   updateUser,
   unlockUser,
   resetPassword,
+  resetTwoFactor,
   deleteUser,
 };

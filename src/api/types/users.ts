@@ -17,6 +17,8 @@ export interface AppUser {
   invitePending: boolean;
   lastLoginAt: ISOInstant | null;
   createdAt: ISOInstant;
+  /** Two-step sign-in is on. */
+  twoFactorEnabled: boolean;
 }
 
 export interface CreateUserRequest {

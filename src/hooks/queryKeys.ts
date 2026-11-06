@@ -2,6 +2,9 @@ export const queryKeys = {
   users: {
     all: ["users"] as const,
   },
+  twoFactor: {
+    status: ["twoFactor", "status"] as const,
+  },
   owner: {
     all: ["owner"] as const,
     overview: ["owner", "overview"] as const,

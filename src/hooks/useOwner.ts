@@ -43,3 +43,8 @@ export function useAddUniversityAdminMutation() {
   return useOwnerMutation(async ({ id, payload }: { id: UUID; payload: AddUniversityAdminRequest }) =>
     unwrapServiceResponse(await ownerService.addAdmin(id, payload)));
 }
+
+export function useResetAdminTwoFactorMutation() {
+  return useOwnerMutation(async ({ universityId, userId }: { universityId: UUID; userId: UUID }) =>
+    unwrapServiceResponse(await ownerService.resetAdminTwoFactor(universityId, userId)));
+}

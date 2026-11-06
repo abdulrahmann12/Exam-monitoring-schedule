@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
+import { TwoFactorCard } from "@/components/uniguard/TwoFactorCard";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
 import { useDemoUser } from "@/hooks/useDemoUser";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -139,6 +140,8 @@ export default function Settings() {
         </fieldset>
 
         {!isDemo && <ChangePasswordCard showSignOutEverywhere />}
+
+        {!isDemo && <TwoFactorCard />}
 
         <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>

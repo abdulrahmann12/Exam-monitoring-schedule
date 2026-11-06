@@ -8,6 +8,7 @@ export interface OwnerUniversityAdmin {
   enabled: boolean;
   signedIn: boolean;
   invitationPending: boolean;
+  twoFactorEnabled: boolean;
 }
 
 /** One university with its usage. Counts only: the owner never sees a university's data. */

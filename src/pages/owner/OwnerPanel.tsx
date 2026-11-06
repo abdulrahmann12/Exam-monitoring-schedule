@@ -4,7 +4,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { AdminInvitation, OwnerUniversity } from "@/api";
+import type { AdminInvitation, OwnerUniversity, OwnerUniversityAdmin } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -16,8 +16,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
+import { TwoFactorCard } from "@/components/uniguard/TwoFactorCard";
 import {
   useAddUniversityAdminMutation,
+  useResetAdminTwoFactorMutation,
   useCreateUniversityMutation,
   useOwnerActivityQuery,
   useOwnerOverviewQuery,
@@ -44,6 +46,7 @@ export default function OwnerPanel() {
   const [toggling, setToggling] = useState<OwnerUniversity | null>(null);
   const [addingAdminTo, setAddingAdminTo] = useState<OwnerUniversity | null>(null);
   const [invitation, setInvitation] = useState<AdminInvitation | null>(null);
+  const [resettingTwoFactor, setResettingTwoFactor] = useState<{ university: OwnerUniversity; admin: OwnerUniversityAdmin } | null>(null);
 
   const overview = overviewQuery.data;
 
@@ -106,6 +109,7 @@ export default function OwnerPanel() {
                     onEdit={() => setEditing(university)}
                     onToggle={() => setToggling(university)}
                     onAddAdmin={() => setAddingAdminTo(university)}
+                    onResetTwoFactor={(admin) => setResettingTwoFactor({ university, admin })}
                   />
                 ))}
               </section>
@@ -115,7 +119,10 @@ export default function OwnerPanel() {
 
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <PlatformActivity />
-          <ChangePasswordCard showSignOutEverywhere />
+          <div className="space-y-6">
+            <ChangePasswordCard showSignOutEverywhere />
+            <TwoFactorCard />
+          </div>
         </div>
       </main>
 
@@ -130,6 +137,13 @@ export default function OwnerPanel() {
         />
       )}
       {invitation && <InvitationDialog result={invitation} onClose={() => setInvitation(null)} />}
+      {resettingTwoFactor && (
+        <ResetTwoFactorDialog
+          university={resettingTwoFactor.university}
+          admin={resettingTwoFactor.admin}
+          onClose={() => setResettingTwoFactor(null)}
+        />
+      )}
     </div>
   );
 }
@@ -144,11 +158,12 @@ function Stat({ label, value, hint }: { label: string; value: number; hint?: str
   );
 }
 
-function UniversityCard({ university, onEdit, onToggle, onAddAdmin }: {
+function UniversityCard({ university, onEdit, onToggle, onAddAdmin, onResetTwoFactor }: {
   university: OwnerUniversity;
   onEdit: () => void;
   onToggle: () => void;
   onAddAdmin: () => void;
+  onResetTwoFactor: (admin: OwnerUniversityAdmin) => void;
 }) {
   return (
     <article className={`rounded-xl border bg-card p-4 shadow-card ${university.active ? "border-border" : "border-warning/40"}`}>
@@ -198,6 +213,14 @@ function UniversityCard({ university, onEdit, onToggle, onAddAdmin }: {
                   ? <span className="ml-1 text-muted-foreground">(invitation sent)</span>
                   : <span className="ml-1 text-warning">(not signed in yet)</span>}
                 {!admin.enabled && <span className="ml-1 text-destructive">(disabled)</span>}
+                {admin.twoFactorEnabled && (
+                  <>
+                    <span className="ml-1 text-success">(two-step on)</span>
+                    <button type="button" className="ml-1 text-primary hover:underline" onClick={() => onResetTwoFactor(admin)}>
+                      reset
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -494,5 +517,40 @@ function PlatformActivity() {
         </ul>
       )}
     </section>
+  );
+}
+
+/** The administrator lost their phone and recovery codes (for example the only administrator). */
+function ResetTwoFactorDialog({ university, admin, onClose }: { university: OwnerUniversity; admin: OwnerUniversityAdmin; onClose: () => void }) {
+  const mutation = useResetAdminTwoFactorMutation();
+
+  async function confirm() {
+    try {
+      await mutation.mutateAsync({ universityId: university.id, userId: admin.id });
+      toast.success(`Two-step sign-in removed for ${admin.email}.`);
+      onClose();
+    } catch (error) {
+      showErrorToast(error, { title: "Could not reset two-step sign-in." });
+    }
+  }
+
+  return (
+    <AlertDialog open onOpenChange={(open) => !open && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Reset two-step sign-in for {admin.email}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Only do this after confirming who is asking (for example by phone). They are signed out everywhere, can then sign in
+            with their password only, and should set up two-step sign-in again.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction disabled={mutation.isPending} onClick={(event) => { event.preventDefault(); void confirm(); }}>
+            Reset
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

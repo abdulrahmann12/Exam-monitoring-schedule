@@ -15,11 +15,14 @@ import { toast } from "sonner";
 
 export default function Login() {
   const { appName, appTagline } = useBranding();
-  const { isLoggingIn, isStartingDemo, login, loginWithDemo } = useAuth();
+  const { isLoggingIn, isStartingDemo, isVerifyingTwoFactor, login, loginWithDemo, verifyTwoFactor } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  const isAuthenticating = isLoggingIn || isStartingDemo;
+  const [step, setStep] = useState<"password" | "code">("password");
+  const [code, setCode] = useState("");
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const isAuthenticating = isLoggingIn || isStartingDemo || isVerifyingTwoFactor;
   const backendTarget = (() => {
     try {
       return new URL(API_BASE_URL).host;
@@ -49,12 +52,37 @@ export default function Login() {
     setLoginError(null);
 
     try {
-      await login({ email: email.trim(), password });
-      toast.success("Signed in successfully.");
+      const outcome = await login({ email: email.trim(), password });
+      if (outcome === "two-factor") {
+        setPassword("");
+        setCode("");
+        setUseRecoveryCode(false);
+        setStep("code");
+      } else if (outcome === "signed-in") {
+        toast.success("Signed in successfully.");
+      }
     } catch (error) {
       handleAuthError(error);
     }
   }
+
+  async function handleCodeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginError(null);
+    try {
+      await verifyTwoFactor(code.trim());
+      toast.success("Signed in successfully.");
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (/sign in again/i.test(message)) {
+        setStep("password"); // the step expired or was used up: start again with the password
+      }
+      handleAuthError(error);
+      setCode("");
+    }
+  }
+
+  const codeReady = useRecoveryCode ? code.replace(/[\s-]/g, "").length === 10 : /^\d{6}$/.test(code.replace(/\s/g, ""));
 
   async function handleDemoLogin() {
     setLoginError(null);
@@ -125,6 +153,57 @@ export default function Login() {
               <p className="text-xs text-muted-foreground">Active backend: {backendTarget}</p>
             </CardHeader>
             <CardContent className="space-y-6">
+              {step === "code" ? (
+              <form aria-busy={isAuthenticating} className="space-y-5" onSubmit={handleCodeSubmit}>
+                {loginError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to continue</AlertTitle>
+                    <AlertDescription><p>{loginError}</p></AlertDescription>
+                  </Alert>
+                ) : null}
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">Two-step sign-in</p>
+                  <p className="text-sm text-muted-foreground">
+                    {useRecoveryCode
+                      ? "Enter one of your recovery codes (each works once)."
+                      : "Open your authenticator app (for example Google Authenticator) and enter the 6-digit code for this account."}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="two-factor-code">{useRecoveryCode ? "Recovery code" : "6-digit code"}</Label>
+                  <Input
+                    id="two-factor-code"
+                    inputMode={useRecoveryCode ? "text" : "numeric"}
+                    autoComplete="one-time-code"
+                    placeholder={useRecoveryCode ? "xxxxx-xxxxx" : "123456"}
+                    maxLength={useRecoveryCode ? 11 : 7}
+                    className="font-mono tracking-widest"
+                    value={code}
+                    disabled={isAuthenticating}
+                    onChange={(event) => {
+                      setCode(useRecoveryCode ? event.target.value : event.target.value.replace(/[^\d ]/g, ""));
+                      if (loginError) {
+                        setLoginError(null);
+                      }
+                    }}
+                    autoFocus
+                    required
+                  />
+                </div>
+                <Button className="w-full gap-2" disabled={isAuthenticating || !codeReady} type="submit">
+                  {isVerifyingTwoFactor ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                  {isVerifyingTwoFactor ? "Checking..." : "Verify and sign in"}
+                </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <button type="button" className="font-medium text-primary hover:underline" onClick={() => { setUseRecoveryCode(!useRecoveryCode); setCode(""); setLoginError(null); }}>
+                    {useRecoveryCode ? "Use the code from the app" : "Lost your phone? Use a recovery code"}
+                  </button>
+                  <button type="button" className="text-muted-foreground hover:underline" onClick={() => { setStep("password"); setCode(""); setLoginError(null); }}>
+                    Back to password
+                  </button>
+                </div>
+              </form>
+              ) : (
               <form aria-busy={isAuthenticating} className="space-y-5" onSubmit={handleSubmit}>
                 {loginError ? (
                   <Alert variant="destructive">
@@ -181,6 +260,7 @@ export default function Login() {
                   {isLoggingIn ? "Signing in..." : "Sign in"}
                 </Button>
               </form>
+              )}
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
