@@ -32,5 +32,7 @@ npm run build        # production build in dist/
 
 ## Deploying on Vercel
 
-`vercel.json` serves `index.html` for every page address (so refreshing any page works) and leaves `/api/`
-free, so `/api` can be forwarded to the backend. See the backend README for the cookie settings.
+`vercel.json` forwards `/api/*` to the backend on Hugging Face and serves `index.html` for every page address
+(so refreshing any page works). The app and the API then count as one site, so sign-in cookies work in every
+browser. Leave `VITE_API_BASE_URL` empty (and not set in the Vercel project). Full steps: the backend's
+`docs/DEPLOYMENT.md`.

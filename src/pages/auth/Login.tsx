@@ -36,6 +36,9 @@ export default function Login() {
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const isAuthenticating = isLoggingIn || isStartingDemo || isVerifyingTwoFactor;
   const backendTarget = (() => {
+    if (!API_BASE_URL) {
+      return `${window.location.host}/api`; // same site: the hosting forwards /api to the backend
+    }
     try {
       return new URL(API_BASE_URL).host;
     } catch {
