@@ -32,7 +32,20 @@ export interface ScheduleBulkUploadErrorPayload {
 }
 
 /** Shape of the successful 200 response after a bulk-schedule upload. */
+/** Result of a timetable import (the backend's ScheduleBulkUploadResultDTO). */
 export interface ScheduleBulkUploadResult {
-  /** Number of schedule rows auto-assigned successfully. */
-  assignedCount: number;
+  roomAssignmentsCreated: number;
+  chiefSlotsTotal: number;
+  chiefSlotsFilled: number;
+  invigilatorSlotsTotal: number;
+  invigilatorSlotsFilled: number;
+  /** Staffing shortfalls (the exam rooms were still created). */
+  warnings: string[];
+  /** Time slots created because the file used times no existing slot had. */
+  timeSlotsCreated: string[];
+  /** Which column was read as what, e.g. "Exam Start Time → start time". */
+  columnsRecognised: string[];
 }
+
+/** For dates like 03/04/2027 only; "AUTO" decides from the file. */
+export type ImportDateOrder = "AUTO" | "DAY_FIRST" | "MONTH_FIRST";

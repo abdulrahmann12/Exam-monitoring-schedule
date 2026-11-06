@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { ImportDateOrder } from "@/api";
 
 import type { ScheduleBulkUploadRowError, UUID } from "@/api";
 import { scheduleGroupsService } from "@/services";
@@ -73,6 +74,7 @@ export function extractBulkUploadRowErrors(error: unknown): ScheduleBulkUploadRo
 interface UploadBulkScheduleVariables {
   groupId: UUID;
   file: File;
+  dateOrder?: ImportDateOrder;
 }
 
 /**
@@ -91,9 +93,9 @@ export function useBulkScheduleUploadMutation() {
       resourceId: groupId,
       url: `${SCHEDULE_GROUPS_ENDPOINT}/${groupId}/bulk-upload`,
     }),
-    mutationFn: async ({ groupId, file }: UploadBulkScheduleVariables) =>
+    mutationFn: async ({ groupId, file, dateOrder }: UploadBulkScheduleVariables) =>
       unwrapServiceResponse(
-        await scheduleGroupsService.uploadBulkSchedule(groupId, file),
+        await scheduleGroupsService.uploadBulkSchedule(groupId, file, dateOrder),
       ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });

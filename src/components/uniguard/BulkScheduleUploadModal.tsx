@@ -15,7 +15,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import type { ScheduleBulkUploadRowError, UUID } from "@/api";
+import type { ImportDateOrder, ScheduleBulkUploadRowError, UUID } from "@/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -72,6 +72,7 @@ export function BulkScheduleUploadModal({
   const [isDragActive, setIsDragActive] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [rowErrors, setRowErrors] = useState<ScheduleBulkUploadRowError[]>([]);
+  const [dateOrder, setDateOrder] = useState<ImportDateOrder>("AUTO");
 
   // ── Reset state when the dialog closes ──────────────────────────────────
   function handleOpenChange(value: boolean) {
@@ -103,8 +104,9 @@ export function BulkScheduleUploadModal({
   function acceptFile(picked: File | null | undefined) {
     if (!picked) return;
 
-    if (!picked.name.toLowerCase().endsWith(".xlsx")) {
-      toast.error("Only .xlsx files are supported.");
+    const name = picked.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".csv")) {
+      toast.error("Upload an Excel (.xlsx) or CSV (.csv) file.");
       return;
     }
 
@@ -141,10 +143,18 @@ export function BulkScheduleUploadModal({
     setRowErrors([]);
 
     try {
-      const result = await uploadMutation.mutateAsync({ groupId, file });
-      toast.success("Schedule generated!", {
-        description: `${result.assignedCount} assignment${result.assignedCount !== 1 ? "s" : ""} created and staff auto-assigned.`,
-      });
+      const result = await uploadMutation.mutateAsync({ groupId, file, dateOrder });
+      const details = [
+        `Staff placed: chiefs ${result.chiefSlotsFilled}/${result.chiefSlotsTotal}, invigilators ${result.invigilatorSlotsFilled}/${result.invigilatorSlotsTotal}.`,
+        result.timeSlotsCreated.length > 0 ? `New time slots: ${result.timeSlotsCreated.join(", ")}.` : null,
+        result.warnings.length > 0 ? `${result.warnings.length} staffing warning(s): see the Scheduler or Reports > coverage gaps.` : null,
+      ].filter(Boolean).join(" ");
+      const imported = `${result.roomAssignmentsCreated} exam room${result.roomAssignmentsCreated !== 1 ? "s" : ""} imported.`;
+      if (result.warnings.length > 0) {
+        toast.warning(imported, { description: details, duration: 10000 });
+      } else {
+        toast.success(imported, { description: details, duration: 8000 });
+      }
       handleOpenChange(false);
     } catch (error) {
       const extracted = extractBulkUploadRowErrors(error);
@@ -196,9 +206,20 @@ export function BulkScheduleUploadModal({
               Download the template
             </h2>
             <p className="text-sm text-muted-foreground mb-3">
-              Get the Excel template pre-formatted for this schedule group, fill
-              in the exam data, then upload it below.
+              Use the Excel template for this exam period, or upload an export from your student-information system
+              (Banner, PeopleSoft, Odoo) as Excel or CSV. Columns are recognised by their names; rooms must already exist,
+              missing time slots are created.
             </p>
+            <details className="mb-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none">Recognised column names</summary>
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                <li><b>Date:</b> Date, Exam Date (2027-01-10, 10-JAN-2027, or Excel dates)</li>
+                <li><b>Time:</b> Time Slot (09:00 - 12:00), or Start Time + End Time (also 9:00 AM, 0900)</li>
+                <li><b>Room:</b> Room, Classroom, Facility ID, Location (optional Building is combined with Room)</li>
+                <li><b>Subject:</b> Subject Name, Course Title, Descr; Subject Code, Course Code, or Subject + Course Number / Catalog Nbr</li>
+                <li><b>Students:</b> Students, Enrollment, Enrl Tot, Headcount</li>
+              </ul>
+            </details>
             <Button
               id="bulk-schedule-download-template"
               variant="outline"
@@ -211,6 +232,19 @@ export function BulkScheduleUploadModal({
                 : <Download className="h-4 w-4" />}
               {isDownloading ? "Downloading…" : "Download Template (.xlsx)"}
             </Button>
+            <label className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Dates like 03/04/2027 mean:</span>
+              <select
+                className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                value={dateOrder}
+                onChange={(event) => setDateOrder(event.target.value as ImportDateOrder)}
+                aria-label="Date order"
+              >
+                <option value="AUTO">Decide from the file</option>
+                <option value="DAY_FIRST">Day first (3 April)</option>
+                <option value="MONTH_FIRST">Month first (4 March)</option>
+              </select>
+            </label>
           </section>
 
           {/* ── Step 2: Upload filled file ────────────────────────────────── */}
@@ -236,17 +270,17 @@ export function BulkScheduleUploadModal({
               onClick={() => inputRef.current?.click()}
               role="button"
               tabIndex={0}
-              aria-label="Drop zone: click or drag an xlsx file here"
+              aria-label="Drop zone: click or drag an Excel or CSV file here"
               onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
             >
               <input
                 ref={inputRef}
                 id="bulk-schedule-file-input"
                 type="file"
-                accept=".xlsx"
+                accept=".xlsx,.csv"
                 className="hidden"
                 onChange={handleInputChange}
-                aria-label="Select .xlsx schedule file"
+                aria-label="Select an Excel or CSV timetable file"
               />
 
               <div className="flex flex-col items-center justify-center gap-2 text-center pointer-events-none">
@@ -263,7 +297,7 @@ export function BulkScheduleUploadModal({
                 ) : (
                   <>
                     <p className="font-medium">
-                      {isDragActive ? "Drop the file here" : "Drag & drop your .xlsx file"}
+                      {isDragActive ? "Drop the file here" : "Drag & drop your Excel or CSV file"}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       or <span className="text-primary underline-offset-2 hover:underline">browse</span> to select
@@ -288,7 +322,7 @@ export function BulkScheduleUploadModal({
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Fix the issues below in your Excel file and re-upload.
+                Nothing was imported. Fix the rows below in your file and upload it again.
               </p>
               <div className="overflow-hidden rounded-xl border border-destructive/20">
                 <table className="w-full text-sm">

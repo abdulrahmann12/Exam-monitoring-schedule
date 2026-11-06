@@ -2,6 +2,7 @@ import type {
   BackendPaginatedResponse,
   BulkTemplateDownload,
   NormalizedPaginatedResponse,
+  ImportDateOrder,
   ScheduleBulkUploadResult,
   ScheduleGroup,
   ScheduleGroupRequest,
@@ -112,9 +113,13 @@ async function downloadBulkTemplate(id: UUID): Promise<ServiceResponse<BulkTempl
 async function uploadBulkSchedule(
   id: UUID,
   file: File,
+  dateOrder: ImportDateOrder = "AUTO",
 ): Promise<ServiceResponse<ScheduleBulkUploadResult>> {
   const formData = new FormData();
   formData.append("file", file);
+  if (dateOrder !== "AUTO") {
+    formData.append("dateOrder", dateOrder);
+  }
 
   return performRequest<ScheduleBulkUploadResult>(
     {
