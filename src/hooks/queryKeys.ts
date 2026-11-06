@@ -2,6 +2,11 @@ export const queryKeys = {
   users: {
     all: ["users"] as const,
   },
+  emails: {
+    all: ["emails"] as const,
+    counts: ["emails", "counts"] as const,
+    log: (page: number, status?: string) => ["emails", "log", page, status ?? "all"] as const,
+  },
   sso: {
     providers: ["sso", "providers"] as const,
     connections: ["sso", "connections"] as const,

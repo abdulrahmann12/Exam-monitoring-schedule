@@ -26,6 +26,14 @@ describe("role permissions (UI only; the server enforces the same rules)", () =>
     expect(roleLabel("SUPER_ADMIN")).toBe("Platform owner");
   });
 
+  it("administrators and schedulers see the email log; viewers, the demo and the owner do not", () => {
+    expect(permissionsFor("ADMIN").canViewEmails).toBe(true);
+    expect(permissionsFor("SCHEDULER").canViewEmails).toBe(true);
+    expect(permissionsFor("VIEWER").canViewEmails).toBe(false);
+    expect(permissionsFor("DEMO_ADMIN").canViewEmails).toBe(false);
+    expect(permissionsFor("SUPER_ADMIN").canViewEmails).toBe(false);
+  });
+
   it("no known role means no rights", () => {
     expect(permissionsFor(null)).toMatchObject({ canEdit: false, canEditSettings: false, canManageUsers: false });
     expect(resolveRole({ roles: ["ROLE_SOMETHING_ELSE"] })).toBeNull();

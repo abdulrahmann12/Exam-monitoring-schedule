@@ -12,6 +12,8 @@ export interface Permissions {
   canManageUsers: boolean;
   /** Platform owner: only the owner panel, never a university's data. */
   isOwner: boolean;
+  /** See the email delivery log (whoever can send schedules; the demo has no real emails). */
+  canViewEmails: boolean;
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -53,6 +55,7 @@ export function permissionsFor(role: UserRole | null): Permissions {
     canEditSettings: role === "ADMIN" || role === "DEMO_ADMIN",
     canManageUsers: role === "ADMIN",
     isOwner: role === "SUPER_ADMIN",
+    canViewEmails: role === "ADMIN" || role === "SCHEDULER",
   };
 }
 

@@ -1,5 +1,6 @@
 import { CalendarRange, Mail, Plus } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
     AlertDialog,
@@ -27,9 +28,11 @@ export function ScheduleGroupSelector() {
   const createMutation = useCreateScheduleGroupMutation();
   const notifyMutation = useNotifyScheduleGroupMutation();
   const isDemoUser = useDemoUser();
-  const { canEdit } = usePermissions();
+  const { canEdit, canViewEmails: canSeeEmails } = usePermissions();
   const [createOpen, setCreateOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [resendAll, setResendAll] = useState(false);
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -61,32 +64,26 @@ export function ScheduleGroupSelector() {
     }
 
     try {
-      const result = await notifyMutation.mutateAsync(activeGroupId);
+      const result = await notifyMutation.mutateAsync({ id: activeGroupId, resendAll });
       setNotifyOpen(false);
+      setResendAll(false);
 
-      if (result.sent === 0 && result.skipped === 0 && result.failed === 0) {
+      if (result.queued === 0 && result.skipped === 0 && result.unchanged === 0) {
         toast.warning("No assigned staff to notify for this period.");
         return;
       }
 
-      const parts = [`Sent ${result.sent}`];
+      const parts: string[] = [];
+      parts.push(result.queued > 0 ? `${result.queued} email(s) are being sent in the background` : "Nothing new to send");
+      if (result.unchanged > 0) {
+        parts.push(`${result.unchanged} already received this exact schedule`);
+      }
       if (result.skipped > 0) {
-        parts.push(`skipped ${result.skipped} without email`);
+        parts.push(`${result.skipped} without email`);
       }
-      if (result.failed > 0) {
-        parts.push(`failed ${result.failed}`);
-      }
-      const summary = `${parts.join(". ")}.`;
-
-      if (result.failed > 0) {
-        toast.error(summary, {
-          description: result.failedNames.length > 0 ? result.failedNames.join(", ") : undefined,
-        });
-        return;
-      }
-
-      toast.success(summary, {
+      toast.success(`${parts.join(". ")}.`, {
         description: result.skippedNames.length > 0 ? `No email: ${result.skippedNames.join(", ")}` : undefined,
+        action: canSeeEmails ? { label: "View emails", onClick: () => navigate("/emails") } : undefined,
       });
     } catch (error) {
       showErrorToast(error);
@@ -180,13 +177,18 @@ export function ScheduleGroupSelector() {
             <AlertDialogTitle>Send schedules for {activeGroup?.name ?? "this period"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Each assigned chief and invigilator receives a PDF of only their own rows for this exam period.
-              People without an email address are skipped.
+              Emails are sent in the background and retried if the email service has trouble. People who already
+              received this exact schedule are not emailed again; people without an email address are skipped.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={resendAll} onChange={(event) => setResendAll(event.target.checked)} />
+            Send to everyone again, also if their schedule did not change
+          </label>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={notifyMutation.isPending}>Cancel</AlertDialogCancel>
             <Button disabled={notifyMutation.isPending || !activeGroupId} onClick={() => void handleNotify()}>
-              {notifyMutation.isPending ? "Sending..." : "Send emails"}
+              {notifyMutation.isPending ? "Preparing..." : "Send emails"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -13,4 +13,5 @@ export * from "./useUsers";
 export * from "./useOwner";
 export * from "./useTwoFactor";
 export * from "./useSso";
+export * from "./useEmailOutbox";
 

@@ -11,3 +11,4 @@ export * from "./auditService";
 export * from "./ownerService";
 export * from "./twoFactorService";
 export * from "./ssoService";
+export * from "./emailOutboxService";

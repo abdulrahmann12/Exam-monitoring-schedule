@@ -67,12 +67,13 @@ export function useUpdateScheduleGroupMutation() {
 
 export function useNotifyScheduleGroupMutation() {
   return useSafeMutation({
-    getFingerprint: (id: UUID) => ({
+    getFingerprint: ({ id }: { id: UUID; resendAll: boolean }) => ({
       method: "POST",
       resourceId: id,
       url: `${SCHEDULE_GROUPS_ENDPOINT}/${id}/notify`,
     }),
-    mutationFn: async (id: UUID) => unwrapServiceResponse(await scheduleGroupsService.notifyAssignedStaff(id)),
+    mutationFn: async ({ id, resendAll }: { id: UUID; resendAll: boolean }) =>
+      unwrapServiceResponse(await scheduleGroupsService.notifyAssignedStaff(id, resendAll)),
   });
 }
 

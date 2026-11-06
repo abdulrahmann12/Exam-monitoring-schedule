@@ -1,4 +1,4 @@
-import { CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Mail, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -16,6 +16,7 @@ const items = [
   { title: "Rooms", url: "/rooms", icon: DoorOpen },
   { title: "Time Slots", url: "/time-slots", icon: Clock3 },
   { title: "Assignments", url: "/assignments", icon: ListOrdered },
+  { title: "Emails", url: "/emails", icon: Mail, needsEmails: true },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -29,8 +30,11 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { appName, appTagline, logoDataUrl } = useBranding();
-  const { canEdit, canManageUsers } = usePermissions();
-  const visibleItems = [...items.filter((item) => canEdit || !item.needsEdit), ...(canManageUsers ? adminItems : [])];
+  const { canEdit, canManageUsers, canViewEmails } = usePermissions();
+  const visibleItems = [
+    ...items.filter((item) => (canEdit || !item.needsEdit) && (canViewEmails || !item.needsEmails)),
+    ...(canManageUsers ? adminItems : []),
+  ];
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">

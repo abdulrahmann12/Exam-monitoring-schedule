@@ -62,10 +62,12 @@ async function updateScheduleGroup(
   });
 }
 
-async function notifyAssignedStaff(id: UUID): Promise<ServiceResponse<ScheduleNotifyResult>> {
+/** Queues the schedule emails; with resendAll also to people whose schedule is unchanged. */
+async function notifyAssignedStaff(id: UUID, resendAll = false): Promise<ServiceResponse<ScheduleNotifyResult>> {
   return performRequest<ScheduleNotifyResult>({
     url: `${SCHEDULE_GROUPS_ENDPOINT}/${id}/notify`,
     method: "POST",
+    params: resendAll ? { resendAll: true } : undefined,
   });
 }
 
