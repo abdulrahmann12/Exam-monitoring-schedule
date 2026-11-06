@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
 import { TwoFactorCard } from "@/components/uniguard/TwoFactorCard";
+import { ConnectedAccountsCard } from "@/components/uniguard/ConnectedAccountsCard";
 import {
   useAddUniversityAdminMutation,
   useResetAdminTwoFactorMutation,
@@ -122,6 +123,7 @@ export default function OwnerPanel() {
           <div className="space-y-6">
             <ChangePasswordCard showSignOutEverywhere />
             <TwoFactorCard />
+            <ConnectedAccountsCard returnPath="/owner" />
           </div>
         </div>
       </main>

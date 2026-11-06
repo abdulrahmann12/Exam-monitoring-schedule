@@ -2,6 +2,11 @@ export const queryKeys = {
   users: {
     all: ["users"] as const,
   },
+  sso: {
+    providers: ["sso", "providers"] as const,
+    connections: ["sso", "connections"] as const,
+    university: ["sso", "university"] as const,
+  },
   twoFactor: {
     status: ["twoFactor", "status"] as const,
   },

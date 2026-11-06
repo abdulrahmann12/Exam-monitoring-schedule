@@ -1,6 +1,6 @@
 import { LoaderCircle, PlayCircle, ShieldCheck } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { API_BASE_URL, ApiError } from "@/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBranding } from "@/lib/branding/BrandingProvider";
+import { ssoService } from "@/api";
+import { useSsoProvidersQuery } from "@/hooks/useSso";
+import { ssoErrorMessage } from "@/lib/sso/messages";
 import { useAuth } from "@/state/auth";
 import { getErrorMessage } from "@/utils/error";
 import { toast } from "sonner";
@@ -18,8 +21,17 @@ export default function Login() {
   const { isLoggingIn, isStartingDemo, isVerifyingTwoFactor, login, loginWithDemo, verifyTwoFactor } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [step, setStep] = useState<"password" | "code">("password");
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Back from Microsoft / Google: an error code (fixed texts only), or "enter your two-step code".
+  const [loginError, setLoginError] = useState<string | null>(() => ssoErrorMessage(searchParams.get("sso_error")));
+  const [step, setStep] = useState<"password" | "code">(() => (searchParams.get("step") === "two-factor" ? "code" : "password"));
+  const providers = useSsoProvidersQuery().data ?? [];
+
+  useEffect(() => {
+    if (searchParams.has("sso_error") || searchParams.has("step")) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [code, setCode] = useState("");
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
   const isAuthenticating = isLoggingIn || isStartingDemo || isVerifyingTwoFactor;
@@ -261,6 +273,16 @@ export default function Login() {
                 </Button>
               </form>
               )}
+
+              {step === "password" && providers.length > 0 ? (
+                <div className="space-y-2">
+                  {providers.map((provider) => (
+                    <Button key={provider.id} asChild variant="outline" className="w-full" aria-disabled={isAuthenticating}>
+                      <a href={ssoService.startUrl(provider.id)}>Sign in with {provider.name}</a>
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">

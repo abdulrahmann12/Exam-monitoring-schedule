@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
 import { TwoFactorCard } from "@/components/uniguard/TwoFactorCard";
+import { ConnectedAccountsCard } from "@/components/uniguard/ConnectedAccountsCard";
+import { UniversitySsoCard } from "@/components/uniguard/UniversitySsoCard";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
 import { useDemoUser } from "@/hooks/useDemoUser";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -35,7 +37,7 @@ export default function Settings() {
   const updateMutation = useUpdateSettingsMutation();
   const { activeGroup } = useScheduleGroup();
   const isDemo = useDemoUser();
-  const { canEditSettings } = usePermissions();
+  const { canEditSettings, canManageUsers } = usePermissions();
   const [formState, setFormState] = useState<SettingsRequest>(DEFAULT_SETTINGS_FORM);
 
   const savePayload = useMemo<SettingsRequest>(
@@ -142,6 +144,10 @@ export default function Settings() {
         {!isDemo && <ChangePasswordCard showSignOutEverywhere />}
 
         {!isDemo && <TwoFactorCard />}
+
+        {!isDemo && <ConnectedAccountsCard />}
+
+        {canManageUsers && <UniversitySsoCard />}
 
         <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>

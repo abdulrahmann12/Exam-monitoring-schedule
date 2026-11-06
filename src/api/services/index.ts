@@ -10,3 +10,4 @@ export * from "./usersService";
 export * from "./auditService";
 export * from "./ownerService";
 export * from "./twoFactorService";
+export * from "./ssoService";

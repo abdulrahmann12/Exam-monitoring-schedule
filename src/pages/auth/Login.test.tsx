@@ -26,6 +26,10 @@ vi.mock("@/lib/branding/BrandingProvider", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+vi.mock("@/hooks/useSso", () => ({
+  useSsoProvidersQuery: () => ({ data: [{ id: "microsoft", name: "Microsoft" }, { id: "google", name: "Google" }] }),
+}));
+
 function signInWithPassword() {
   render(<MemoryRouter><Login /></MemoryRouter>);
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "sara@uni.edu" } });
@@ -85,5 +89,27 @@ describe("sign-in with two-step codes", () => {
     signInWithPassword();
     await waitFor(() => expect(login).toHaveBeenCalled());
     expect(screen.queryByLabelText("6-digit code")).not.toBeInTheDocument();
+  });
+
+  it("offers the configured Microsoft and Google sign-in buttons", () => {
+    render(<MemoryRouter><Login /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Sign in with Microsoft" })).toHaveAttribute("href", "/api/auth/sso/microsoft/start");
+    expect(screen.getByRole("link", { name: "Sign in with Google" })).toHaveAttribute("href", "/api/auth/sso/google/start");
+  });
+
+  it("explains a failed Microsoft / Google sign-in with a fixed text only", () => {
+    render(<MemoryRouter initialEntries={["/login?sso_error=not_linked"]}><Login /></MemoryRouter>);
+    expect(screen.getByText(/not connected to a Uni-Guard account yet/i)).toBeInTheDocument();
+  });
+
+  it("never shows text taken from the address bar", () => {
+    render(<MemoryRouter initialEntries={["/login?sso_error=%3Cb%3EYour%20account%20was%20hacked%3C%2Fb%3E"]}><Login /></MemoryRouter>);
+    expect(screen.queryByText(/hacked/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/could not be confirmed/i)).toBeInTheDocument();
+  });
+
+  it("asks for the two-step code when coming back from Microsoft / Google", () => {
+    render(<MemoryRouter initialEntries={["/login?step=two-factor"]}><Login /></MemoryRouter>);
+    expect(screen.getByLabelText("6-digit code")).toBeInTheDocument();
   });
 });
