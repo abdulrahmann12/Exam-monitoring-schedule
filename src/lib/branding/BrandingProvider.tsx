@@ -5,7 +5,7 @@ import type { Settings } from "@/api";
 import { settingsService } from "@/services";
 import { resolveRole } from "@/hooks/usePermissions";
 import { useAuth } from "@/state/auth";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 export type Theme = "light" | "dark";
 

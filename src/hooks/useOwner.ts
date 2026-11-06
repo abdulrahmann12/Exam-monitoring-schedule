@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { AddUniversityAdminRequest, CreateUniversityRequest, UpdateUniversityRequest, UUID } from "@/api";
 import { ownerService } from "@/api";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
 

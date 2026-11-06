@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { BulkDuplicateStrategy, PeopleQuery, PersonRequest, UUID } from "@/api";
 import { bulkUploadService, peopleService } from "@/services";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { useScheduleGroup } from "@/state/scheduleGroup";
 

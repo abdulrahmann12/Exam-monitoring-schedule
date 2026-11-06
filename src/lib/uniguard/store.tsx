@@ -18,7 +18,7 @@ import { useSettingsQuery } from "@/hooks/useSettings";
 import { assignmentsService, peopleService, roomsService, timeSlotsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { overlappingAssignmentsForSlot, validateAssignment, validateSlotAssignments } from "./constraintEngine";
 import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, requiredInvigilators, Room, ScheduleEntry, Slot, Staff } from "./types";

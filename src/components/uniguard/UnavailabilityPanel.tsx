@@ -10,7 +10,7 @@ import { useDemoUser } from "@/hooks/useDemoUser";
 import { usePermissions } from "@/hooks/usePermissions";
 import { peopleService } from "@/services";
 import { showErrorToast } from "@/utils/error";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 /**
  * Date-specific leave for one person (conference, sickness, travel…).

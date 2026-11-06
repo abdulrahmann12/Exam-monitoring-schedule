@@ -1,55 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/people",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/rooms",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/scheduler",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/timeline",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/time-slots",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/assignments",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/settings",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/users",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/activity",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/forgot-password",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/reset-password",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

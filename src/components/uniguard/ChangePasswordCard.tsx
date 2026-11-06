@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { authService } from "@/services";
 import { useAuth } from "@/state/auth";
 import { showErrorToast } from "@/utils/error";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 const MIN_LENGTH = 10;
 const MAX_BYTES = 72; // BCrypt limit; enforced by the server too

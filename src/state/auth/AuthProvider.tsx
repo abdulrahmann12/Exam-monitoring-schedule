@@ -15,7 +15,7 @@ import { clearLegacyAuthStorage, onSessionEnded } from "@/api/utils/authStorage"
 import { clearDemoSandbox, syncDemoSandboxUser } from "@/api/utils/demoSandbox";
 import { LOGIN_ROUTE, redirectToLogin, registerNavigationHandler } from "@/api/utils/navigation";
 import { authService } from "@/services";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 interface AuthContextValue {
   user: CurrentSession | null;

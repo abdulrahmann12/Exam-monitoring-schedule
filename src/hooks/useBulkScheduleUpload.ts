@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { ScheduleBulkUploadRowError, UUID } from "@/api";
 import { scheduleGroupsService } from "@/services";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";
