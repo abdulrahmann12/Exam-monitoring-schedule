@@ -2,6 +2,10 @@ export const queryKeys = {
   users: {
     all: ["users"] as const,
   },
+  reports: {
+    workload: (groupId: string) => ["reports", "workload", groupId] as const,
+    analytics: (groupId: string) => ["reports", "analytics", groupId] as const,
+  },
   emails: {
     all: ["emails"] as const,
     counts: ["emails", "counts"] as const,

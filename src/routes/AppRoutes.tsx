@@ -15,6 +15,7 @@ import Timeline from "@/pages/uniguard/Timeline";
 import Activity from "@/pages/uniguard/Activity";
 import Users from "@/pages/uniguard/Users";
 import Emails from "@/pages/uniguard/Emails";
+import Reports from "@/pages/uniguard/Reports";
 import OwnerPanel from "@/pages/owner/OwnerPanel";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
@@ -56,6 +57,7 @@ export function AppRoutes() {
         <Route path="/timeline" element={timelineElement} />
         <Route path="/time-slots" element={<TimeSlots />} />
         <Route path="/assignments" element={<Assignments />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route element={<RequirePermission permission="canViewEmails" />}>
           <Route path="/emails" element={<Emails />} />

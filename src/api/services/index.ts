@@ -12,3 +12,4 @@ export * from "./ownerService";
 export * from "./twoFactorService";
 export * from "./ssoService";
 export * from "./emailOutboxService";
+export * from "./reportsService";
