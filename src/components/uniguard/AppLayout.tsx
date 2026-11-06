@@ -38,7 +38,7 @@ export function AppLayout({ children, title, subtitle, actions }: { children: Re
               </Link>
               <div className="hidden min-w-[140px] text-right text-xs text-muted-foreground md:block">
                 <div className="font-medium text-foreground">{user?.displayName || user?.email || "Authenticated"}</div>
-                <div>{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}</div>
+                <div>{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}{user?.universityName ? ` · ${user.universityName}` : ""}</div>
               </div>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => void logout()}>
                 <LogOut className="h-4 w-4" /> Log out

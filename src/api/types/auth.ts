@@ -27,6 +27,9 @@ export interface CurrentSession {
   roles: string[];
   /** True while the account has a temporary password set by an administrator. */
   mustChangePassword?: boolean;
+  /** The university the user belongs to; all data shown is that university's. */
+  universityId?: string | null;
+  universityName?: string | null;
 }
 
 export type AuthSession = AuthResponse;
