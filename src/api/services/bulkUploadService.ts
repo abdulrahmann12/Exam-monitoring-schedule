@@ -9,7 +9,7 @@ function extractFileName(contentDisposition?: string, fallbackFileName = "bulk-t
     return fallbackFileName;
   }
 
-  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^";]+)/i);
+  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
   if (!match?.[1]) {
     return fallbackFileName;
   }

@@ -1,4 +1,5 @@
 import type {
+    Assignment,
     CurrentSession,
     NormalizedPaginatedResponse,
     Person,
@@ -227,7 +228,7 @@ describe("demoSandbox", () => {
     expect(saveResponse.data[0].roomName).toBe("H101");
     expect(saveResponse.data[0].slotLabel).toBe("Morning Session");
 
-    const assignmentsResponse = expectSuccess(await resolveDemoSandboxRequest({
+    const assignmentsResponse = expectSuccess<NormalizedPaginatedResponse<Assignment>>(await resolveDemoSandboxRequest<NormalizedPaginatedResponse<Assignment>>({
       method: "GET",
       params: { direction: "ASC", page: 0, size: 100, sortBy: "examDate" },
       url: "/api/assignments",

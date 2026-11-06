@@ -4,7 +4,7 @@ import type { AssignmentRequest, AssignmentsQuery, UUID } from "@/api";
 import { assignmentsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage } from "@/utils/error";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";

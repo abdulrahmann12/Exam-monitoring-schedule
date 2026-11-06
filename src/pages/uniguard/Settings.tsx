@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/uniguard/AppLayout";
+import { ChangePasswordCard } from "@/components/uniguard/ChangePasswordCard";
+import { TwoFactorCard } from "@/components/uniguard/TwoFactorCard";
+import { ConnectedAccountsCard } from "@/components/uniguard/ConnectedAccountsCard";
+import { UniversitySsoCard } from "@/components/uniguard/UniversitySsoCard";
 import { useSettingsQuery, useUpdateSettingsMutation } from "@/hooks";
+import { useDemoUser } from "@/hooks/useDemoUser";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
@@ -20,12 +26,18 @@ const DEFAULT_SETTINGS_FORM: SettingsRequest = {
   universityName: "",
   department: "",
   examPeriod: "",
+  maxDutiesPerDay: 0,
+  maxDutiesPerPeriod: 0,
+  minRestMinutes: 0,
+  studentsPerInvigilator: 0,
 };
 
 export default function Settings() {
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
   const { activeGroup } = useScheduleGroup();
+  const isDemo = useDemoUser();
+  const { canEditSettings, canManageUsers } = usePermissions();
   const [formState, setFormState] = useState<SettingsRequest>(DEFAULT_SETTINGS_FORM);
 
   const savePayload = useMemo<SettingsRequest>(
@@ -37,6 +49,10 @@ export default function Settings() {
       universityName: formState.universityName.trim(),
       department: formState.department?.trim() || null,
       examPeriod: settingsQuery.data?.examPeriod?.trim() || formState.examPeriod.trim(),
+      maxDutiesPerDay: Math.max(0, Math.trunc(formState.maxDutiesPerDay ?? 0)),
+      maxDutiesPerPeriod: Math.max(0, Math.trunc(formState.maxDutiesPerPeriod ?? 0)),
+      minRestMinutes: Math.max(0, Math.trunc(formState.minRestMinutes ?? 0)),
+      studentsPerInvigilator: Math.max(0, Math.trunc(formState.studentsPerInvigilator ?? 0)),
     }),
     [formState, settingsQuery.data?.examPeriod],
   );
@@ -54,12 +70,16 @@ export default function Settings() {
       universityName: settingsQuery.data.universityName,
       department: settingsQuery.data.department ?? "",
       examPeriod: settingsQuery.data.examPeriod,
+      maxDutiesPerDay: settingsQuery.data.maxDutiesPerDay ?? 0,
+      maxDutiesPerPeriod: settingsQuery.data.maxDutiesPerPeriod ?? 0,
+      minRestMinutes: settingsQuery.data.minRestMinutes ?? 0,
+      studentsPerInvigilator: settingsQuery.data.studentsPerInvigilator ?? 0,
     });
   }, [settingsQuery.data]);
 
   if (settingsQuery.isLoading) {
     return (
-      <AppLayout title="Settings" subtitle="Customize your branding, theme, and exported document headers.">
+      <AppLayout title="Settings" subtitle={canEditSettings ? "Customize your branding, theme, and exported document headers." : "Only administrators can change these settings. You can change your own password here."}>
         <LoadingState title="Loading settings..." description="Fetching backend branding and appearance settings." />
       </AppLayout>
     );
@@ -88,7 +108,7 @@ export default function Settings() {
   return (
     <AppLayout title="Settings" subtitle="Customize your branding, theme, and exported document headers.">
       <div className="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>
             <h3 className="text-display text-lg font-semibold">Brand identity</h3>
             <p className="text-sm text-muted-foreground">These settings appear in the sidebar, navbar, and exported documents.</p>
@@ -108,9 +128,9 @@ export default function Settings() {
             <Label>Logo URL</Label>
             <Input value={formState.logoUrl ?? ""} onChange={(event) => setFormState((previous) => ({ ...previous, logoUrl: event.target.value || null }))} placeholder="https://example.com/logo.png" />
           </div>
-        </section>
+        </fieldset>
 
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <header>
             <h3 className="text-display text-lg font-semibold">Appearance</h3>
             <p className="text-sm text-muted-foreground">Choose the theme stored on the backend for the application shell.</p>
@@ -119,9 +139,60 @@ export default function Settings() {
             <ThemeCard current={formState.theme} value="LIGHT" title="Light" description="Bright workspace for daytime operations." icon={Sun} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
             <ThemeCard current={formState.theme} value="DARK" title="Dark" description="Low-light mode for long scheduling sessions." icon={Moon} onSelect={(nextTheme) => setFormState((previous) => ({ ...previous, theme: nextTheme }))} />
           </div>
-        </section>
+        </fieldset>
 
-        <section className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
+        {!isDemo && <ChangePasswordCard showSignOutEverywhere />}
+
+        {!isDemo && <TwoFactorCard />}
+
+        {!isDemo && <ConnectedAccountsCard />}
+
+        {canManageUsers && <UniversitySsoCard />}
+
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+          <header>
+            <h3 className="text-display text-lg font-semibold">Scheduling rules</h3>
+            <p className="text-sm text-muted-foreground">Enforced by the server for every exam period, on generate and on save.</p>
+          </header>
+          <div>
+            <Label htmlFor="max-duties-per-day">Max duty sessions per person per day</Label>
+            <Input
+              id="max-duties-per-day"
+              type="number"
+              min={0}
+              max={12}
+              value={formState.maxDutiesPerDay ?? 0}
+              onChange={(event) => setFormState((previous) => ({ ...previous, maxDutiesPerDay: Number(event.target.value) || 0 }))}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">0 = unlimited. Rooms covered at the same time count as one session.</p>
+          </div>
+          <NumberSetting
+            id="max-duties-per-period"
+            label="Max duty sessions per person per exam period"
+            hint="0 = unlimited. Counts every day of the selected exam period."
+            max={500}
+            value={formState.maxDutiesPerPeriod ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, maxDutiesPerPeriod: value }))}
+          />
+          <NumberSetting
+            id="min-rest-minutes"
+            label="Minimum rest between sessions (minutes)"
+            hint="0 = none. Applies to two sessions of the same person on one day."
+            max={600}
+            value={formState.minRestMinutes ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, minRestMinutes: value }))}
+          />
+          <NumberSetting
+            id="students-per-invigilator"
+            label="Students per invigilator"
+            hint="0 = use each room's minimum. Otherwise a room with a student count needs max(minimum, students ÷ this) invigilators."
+            max={1000}
+            value={formState.studentsPerInvigilator ?? 0}
+            onChange={(value) => setFormState((previous) => ({ ...previous, studentsPerInvigilator: value }))}
+          />
+        </fieldset>
+
+        <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
           <header>
             <h3 className="text-display text-lg font-semibold">Exported document header</h3>
             <p className="text-sm text-muted-foreground">Used as the header of every PDF and Excel export.</p>
@@ -151,11 +222,11 @@ export default function Settings() {
             <div className="mt-4 text-xs opacity-90">{formState.department || "Department"} · {activeGroup?.name || formState.examPeriod || "Exam period"}</div>
           </div>
 
-          <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !(activeGroup?.name || formState.examPeriod).trim()} onClick={() => void handleSave()}>
+          {canEditSettings && <Button className="gap-2" disabled={isSaveLocked || !formState.systemName.trim() || !formState.universityName.trim() || !(activeGroup?.name || formState.examPeriod).trim()} onClick={() => void handleSave()}>
             {saveState === "pending" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saveState === "pending" ? "Saving..." : saveState === "cooldown" ? "Saved" : "Save settings"}
-          </Button>
-        </section>
+          </Button>}
+        </fieldset>
       </div>
     </AppLayout>
   );
@@ -182,5 +253,15 @@ function ThemeCard({
       <div className="text-sm font-semibold">{title}</div>
       <div className="text-[11px] text-muted-foreground">{description}</div>
     </button>
+  );
+}
+
+function NumberSetting({ id, label, hint, max, value, onChange }: { id: string; label: string; hint: string; max: number; value: number; onChange: (value: number) => void }) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} type="number" min={0} max={max} value={value} onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))} />
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+    </div>
   );
 }

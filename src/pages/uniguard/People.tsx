@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
 import { DayBadges } from "@/components/uniguard/DayBadges";
+import { UnavailabilityPanel } from "@/components/uniguard/UnavailabilityPanel";
 import {
     useCreatePersonMutation,
     useDeletePersonMutation,
@@ -21,12 +22,14 @@ import {
 } from "@/hooks";
 import { roleLabel } from "@/lib/uniguard/types";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
 const DEFAULT_AVAILABLE_DAYS: WeekDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu"];
 
 export default function People() {
+  const { canEdit } = usePermissions();
   const peopleQuery = usePeopleQuery();
   const createMutation = useCreatePersonMutation();
   const updateMutation = useUpdatePersonMutation();
@@ -86,7 +89,7 @@ export default function People() {
     <AppLayout
       title="People"
       subtitle="Manage Chief Invigilators and Invigilators. Workload counts only the selected exam period."
-      actions={
+      actions={canEdit && (
         <PersonDialog
           key={editingPerson?.id ?? "new-person"}
           open={dialogOpen}
@@ -112,16 +115,16 @@ export default function People() {
           onSubmit={handleSubmit}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
-      }
+      )}
     >
       <div className="space-y-6">
-        <BulkUploadCard
+        {canEdit && <BulkUploadCard
           kind="persons"
           existingNames={people.map((person) => person.name)}
           isUploading={uploadBulkMutation.isPending}
           onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
           onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
-        />
+        />}
 
       <Tabs defaultValue="chiefs" className="space-y-5">
         <div className="flex items-center justify-between">
@@ -142,7 +145,7 @@ export default function People() {
             <EmptyState
               title="No chief invigilators"
               description="Create the first chief invigilator to start assigning rooms."
-              action={<Button onClick={() => setDialogOpen(true)}>Create chief invigilator</Button>}
+              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create chief invigilator</Button>}
             />
           ) : (
             <StaffTable people={chiefs} tone="chief" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
@@ -154,7 +157,7 @@ export default function People() {
             <EmptyState
               title="No invigilators"
               description="Create invigilators to fill room assignments."
-              action={<Button onClick={() => setDialogOpen(true)}>Create invigilator</Button>}
+              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create invigilator</Button>}
             />
           ) : (
             <StaffTable people={invigilators} tone="invigilator" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
@@ -177,6 +180,7 @@ function StaffTable({
   onRemove: (id: string) => Promise<void>;
   tone: "chief" | "invigilator";
 }) {
+  const { canEdit } = usePermissions();
   const max = Math.max(1, ...people.map((person) => person.totalAssignments));
   const averageAssignments = people.reduce((sum, person) => sum + person.totalAssignments, 0) / Math.max(1, people.length);
 
@@ -224,7 +228,7 @@ function StaffTable({
                 </div>
               </td>
               <td className="px-3 py-3 text-right">
-                <div className="flex justify-end gap-2">
+                <div className={cn("flex justify-end gap-2", !canEdit && "hidden")}>
                   <Button size="sm" variant="outline" className="gap-2" onClick={() => onEdit(person)}>
                     <PencilLine className="h-4 w-4" /> Edit
                   </Button>
@@ -264,9 +268,13 @@ function PersonDialog({
     email: "",
     role: "CHIEF_INVIGILATOR",
     availableDays: DEFAULT_AVAILABLE_DAYS,
+    gender: null,
+    subjectCodes: [],
   });
+  const [subjectCodesText, setSubjectCodesText] = useState("");
 
   useEffect(() => {
+    setSubjectCodesText((initialValue?.subjectCodes ?? []).join(", "));
     setFormState(
       initialValue
         ? {
@@ -275,6 +283,8 @@ function PersonDialog({
             email: initialValue.email ?? "",
             role: initialValue.role,
             availableDays: initialValue.availableDays,
+            gender: initialValue.gender ?? null,
+            subjectCodes: initialValue.subjectCodes ?? [],
           }
         : {
             name: "",
@@ -282,6 +292,8 @@ function PersonDialog({
             email: "",
             role: "CHIEF_INVIGILATOR",
             availableDays: DEFAULT_AVAILABLE_DAYS,
+            gender: null,
+            subjectCodes: [],
           },
     );
   }, [initialValue, open]);
@@ -337,6 +349,28 @@ function PersonDialog({
             <Label className="mb-2 block">Available days</Label>
             <DayBadges value={formState.availableDays} onChange={(nextDays) => setFormState((previous) => ({ ...previous, availableDays: nextDays as WeekDay[] }))} />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="person-gender">Gender</Label>
+              <select
+                id="person-gender"
+                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={formState.gender ?? ""}
+                onChange={(event) => setFormState((previous) => ({ ...previous, gender: (event.target.value || null) as PersonRequest["gender"] }))}
+              >
+                <option value="">Not set</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">Needed only for male/female halls.</p>
+            </div>
+            <div>
+              <Label htmlFor="person-subjects">Subjects taught</Label>
+              <Input id="person-subjects" value={subjectCodesText} onChange={(event) => setSubjectCodesText(event.target.value)} placeholder="e.g. MATH101, CS301" />
+              <p className="mt-1 text-[11px] text-muted-foreground">Won't invigilate these exams.</p>
+            </div>
+          </div>
+          {initialValue && <UnavailabilityPanel personId={initialValue.id} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -347,6 +381,7 @@ function PersonDialog({
               name: formState.name.trim(),
               department: formState.department.trim(),
               email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
+              subjectCodes: subjectCodesText.split(",").map((code) => code.trim().toUpperCase()).filter(Boolean),
             })}
           >
             {isSubmitting ? "Saving..." : `Save ${roleLabel(formState.role as PersonRole)}`}

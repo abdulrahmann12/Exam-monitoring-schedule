@@ -15,12 +15,15 @@ export interface ScheduleGroupRequest {
   active?: boolean;
 }
 
+/** Emails are queued and sent in the background (see the Emails page). */
 export interface ScheduleNotifyResult {
-  sent: number;
+  queued: number;
+  /** Staff without an email address. */
   skipped: number;
-  failed: number;
+  /** Staff whose schedule was already emailed unchanged (not sent again). */
+  unchanged: number;
   skippedNames: string[];
-  failedNames: string[];
+  batchId: string;
 }
 
 export interface ScheduleGroup {

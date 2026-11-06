@@ -1,39 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/login",
-      "destination": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://abdulraahmann-schedule-backend-demo.hf.space/api/:path*"
     },
     {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/people",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/rooms",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/scheduler",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/timeline",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/time-slots",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/assignments",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/settings",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

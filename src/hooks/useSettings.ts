@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { SettingsRequest } from "@/api";
 import { settingsService } from "@/services";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";

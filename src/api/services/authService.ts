@@ -2,38 +2,25 @@ import {
     DEMO_LOGIN_ENDPOINT,
     DEMO_LOGIN_INVALID_RESPONSE_MESSAGE,
 } from "../../lib/demoMode";
-import type { AuthResponse, CurrentSession, LoginRequest, ServiceResponse } from "../types";
+import type { AccountLinkInfo, AuthResponse, ChangePasswordRequest, CurrentSession, LoginRequest, ServiceResponse } from "../types";
 import { ApiError } from "../types";
-import { clearStoredAuthSession, setStoredAuthSession } from "../utils/authStorage";
 import { clearDemoSandbox } from "../utils/demoSandbox";
 import { performRequest } from "../utils/request";
 import { createErrorResponse, createSuccessResponse } from "../utils/serviceResponse";
 
 const AUTH_ENDPOINT = "/api/auth";
 
-function hasValidAuthResponse(session: AuthResponse): boolean {
-  return typeof session.accessToken === "string"
-    && session.accessToken.trim().length > 0
-    && typeof session.tokenType === "string"
-    && session.tokenType.trim().length > 0
-    && typeof session.expiresAt === "string"
-    && session.expiresAt.trim().length > 0
-    && typeof session.email === "string"
-    && session.email.trim().length > 0;
+function hasValidAuthResponse(session: AuthResponse | null | undefined): boolean {
+  return typeof session?.email === "string" && session.email.trim().length > 0;
 }
 
+/** Signs in; the server sets the HttpOnly session cookies. Nothing is stored in the browser by us. */
 async function login(payload: LoginRequest): Promise<ServiceResponse<AuthResponse>> {
-  const response = await performRequest<AuthResponse>({
+  return performRequest<AuthResponse>({
     url: `${AUTH_ENDPOINT}/login`,
     method: "POST",
     data: payload,
   });
-
-  if (response.success) {
-    setStoredAuthSession(response.data);
-  }
-
-  return response;
 }
 
 async function demoLogin(): Promise<ServiceResponse<AuthResponse>> {
@@ -42,22 +29,14 @@ async function demoLogin(): Promise<ServiceResponse<AuthResponse>> {
     method: "POST",
   });
 
-  if (!response.success) {
-    return response;
-  }
-
-  if (!hasValidAuthResponse(response.data)) {
-    clearStoredAuthSession();
-
+  if (response.success && !hasValidAuthResponse(response.data)) {
     return createErrorResponse<AuthResponse>(new ApiError({
       message: DEMO_LOGIN_INVALID_RESPONSE_MESSAGE,
-      backendMessage: "Demo login returned an invalid authentication payload.",
+      backendMessage: "Demo login returned an invalid payload.",
       status: 502,
       code: "DEMO_LOGIN_INVALID_RESPONSE",
     }));
   }
-
-  setStoredAuthSession(response.data);
 
   return response;
 }
@@ -69,10 +48,54 @@ async function getCurrentSession(): Promise<ServiceResponse<CurrentSession>> {
   });
 }
 
+/**
+ * Ends this device's session on the server; the server also deletes the cookies.
+ * Works even when the access cookie has already expired.
+ */
 async function logout(): Promise<ServiceResponse<null>> {
-  clearStoredAuthSession();
+  try {
+    await performRequest<unknown, null>({ url: `${AUTH_ENDPOINT}/logout`, method: "POST" }, () => null);
+  } catch {
+    // Best effort — local state is cleared regardless.
+  }
   clearDemoSandbox();
   return createSuccessResponse<null>(null);
+}
+
+/** Signs this account out on every device, including this one. */
+async function logoutEverywhere(): Promise<ServiceResponse<null>> {
+  const response = await performRequest<unknown, null>({ url: `${AUTH_ENDPOINT}/logout-all`, method: "POST" }, () => null);
+  if (response.success) {
+    clearDemoSandbox();
+  }
+  return response;
+}
+
+/** Changes the password; the server signs out other devices and renews this one's cookie. */
+async function changePassword(payload: ChangePasswordRequest): Promise<ServiceResponse<AuthResponse>> {
+  return performRequest<AuthResponse>({
+    url: `${AUTH_ENDPOINT}/change-password`,
+    method: "POST",
+    data: payload,
+  });
+}
+
+/** "Forgot password": the server answers the same way whether or not the account exists. */
+async function forgotPassword(email: string): Promise<ServiceResponse<{ message: string }>> {
+  return performRequest<{ message: string }>({ url: `${AUTH_ENDPOINT}/forgot-password`, method: "POST", data: { email } });
+}
+
+/** Checks an emailed link before showing the password form. */
+async function checkPasswordLink(token: string): Promise<ServiceResponse<AccountLinkInfo>> {
+  return performRequest<AccountLinkInfo>({ url: `${AUTH_ENDPOINT}/reset-password/check`, method: "POST", data: { token } });
+}
+
+/** Sets the password from an invitation or reset link; every existing session is signed out. */
+async function setPasswordFromLink(token: string, newPassword: string): Promise<ServiceResponse<null>> {
+  return performRequest<unknown, null>(
+    { url: `${AUTH_ENDPOINT}/reset-password`, method: "POST", data: { token, newPassword } },
+    () => null,
+  );
 }
 
 export const authService = {
@@ -80,4 +103,9 @@ export const authService = {
   demoLogin,
   getCurrentSession,
   logout,
+  logoutEverywhere,
+  changePassword,
+  forgotPassword,
+  checkPasswordLink,
+  setPasswordFromLink,
 };

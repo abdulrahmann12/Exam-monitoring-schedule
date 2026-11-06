@@ -25,7 +25,8 @@ export async function performRequest<TResponse, TResult = TResponse>(
   const demoResponse = await resolveDemoSandboxRequest<TResult>(axiosConfig);
 
   if (demoResponse) {
-    return demoResponse;
+    // The demo sandbox answers with the same shape the caller asked for.
+    return demoResponse as ServiceResponse<TResult>;
   }
 
   try {
@@ -37,7 +38,7 @@ export async function performRequest<TResponse, TResult = TResponse>(
         signal,
       }),
     });
-    const transformedData = transform ? transform(response.data, response) : (response.data as TResult);
+    const transformedData = transform ? transform(response.data, response) : (response.data as unknown as TResult);
     const data = trackDemoSandboxResponse(axiosConfig, transformedData);
 
     return createSuccessResponse(data);

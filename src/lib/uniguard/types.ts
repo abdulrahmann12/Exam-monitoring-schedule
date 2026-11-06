@@ -10,6 +10,11 @@ export interface Staff {
   department: string;
   workingDays: Day[];
   totalAssignments: number;
+  /** Rooms this person may cover at overlapping times (chief = 2, invigilator = 1) — comes from the server. */
+  maxParallelRooms: number;
+  gender?: "MALE" | "FEMALE" | null;
+  /** Upper-case subject codes this person teaches. */
+  subjectCodes?: string[];
 }
 
 export interface Room {
@@ -17,6 +22,7 @@ export interface Room {
   name: string;
   capacity: number;
   minInvigilators: number;
+  hallGender?: "MIXED" | "MALE" | "FEMALE";
 }
 
 export interface Slot {
@@ -41,6 +47,8 @@ export interface Assignment {
   sharedChief?: boolean;
   subjectName?: string;
   subjectCode?: string;
+  /** Students in this room for this exam (optional). */
+  studentCount?: number | null;
 }
 
 export interface ScheduleEntry {
@@ -60,6 +68,13 @@ export function dayOfDate(date: string): Day {
 }
 
 export type AssignmentState = "VALID" | "INCOMPLETE" | "CONFLICT";
+
+/** Same formula as the server: max(room minimum, ceil(students / studentsPerInvigilator)). */
+export function requiredInvigilators(room: Pick<Room, "minInvigilators">, studentCount?: number | null, studentsPerInvigilator = 0): number {
+  const minimum = Math.max(room.minInvigilators, 0);
+  if (!studentCount || studentCount <= 0 || studentsPerInvigilator <= 0) return minimum;
+  return Math.max(minimum, Math.ceil(studentCount / studentsPerInvigilator));
+}
 
 export const minInvigilatorsForCapacity = (capacity: number) => (capacity >= 40 ? 2 : 1);
 export const roleLabel = (role: Role) => role === "CHIEF_INVIGILATOR" ? "Chief Invigilator" : "Invigilator";

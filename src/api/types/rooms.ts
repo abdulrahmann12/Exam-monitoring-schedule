@@ -1,6 +1,8 @@
 import type { ISOInstant, SortDirection, UUID } from "./api";
 
 export type RoomType = "SMALL" | "MEDIUM" | "LARGE";
+/** MIXED = anyone; MALE/FEMALE = gender-separated hall. */
+export type HallGender = "MIXED" | "MALE" | "FEMALE";
 
 export interface RoomsQuery {
   page?: number;
@@ -18,6 +20,7 @@ export interface RoomRequest {
   capacity: number;
   type: RoomType;
   minInvigilators: number;
+  hallGender?: HallGender;
 }
 
 export interface Room {
@@ -26,6 +29,7 @@ export interface Room {
   capacity: number;
   type: RoomType;
   minInvigilators: number;
+  hallGender?: HallGender;
   active: boolean;
   createdAt: ISOInstant;
   updatedAt: ISOInstant;

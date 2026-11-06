@@ -35,6 +35,7 @@ export interface AssignmentRequest {
   locked: boolean;
   source?: AssignmentSource;
   invigilatorIds: Array<UUID | null>;
+  studentCount?: number | null;
 }
 
 export interface BulkAssignmentRequest {
@@ -47,6 +48,7 @@ export interface BulkAssignmentRequest {
   chiefInvigilatorId?: UUID | null;
   isLocked: boolean;
   invigilatorIds: Array<UUID | null>;
+  studentCount?: number | null;
 }
 
 export interface AssignmentInvigilator {
@@ -70,6 +72,7 @@ export interface Assignment {
   endTime: ISOTime;
   subjectName: string | null;
   subjectCode: string | null;
+  studentCount?: number | null;
   chiefInvigilatorId: UUID | null;
   chiefInvigilatorName: string | null;
   locked: boolean;
@@ -78,4 +81,30 @@ export interface Assignment {
   invigilators: AssignmentInvigilator[];
   createdAt: ISOInstant;
   updatedAt: ISOInstant;
+}
+
+/** One room in an unsaved slot draft — sent to / returned by the server-side generator. */
+export interface PreviewAssignment {
+  roomId: UUID;
+  chiefInvigilatorId: UUID | null;
+  invigilatorIds: Array<UUID | null>;
+  locked: boolean;
+  subjectName?: string | null;
+  subjectCode?: string | null;
+  studentCount?: number | null;
+}
+
+export interface GeneratePreviewRequest {
+  scheduleGroupId?: UUID;
+  examDate: ISODate;
+  slotId: UUID;
+  roomIds: UUID[];
+  /** true = keep unselected rooms of `current` as they are. Locked rooms are always kept. */
+  regenerateUnlocked: boolean;
+  current: PreviewAssignment[];
+}
+
+export interface GeneratePreviewResponse {
+  assignments: PreviewAssignment[];
+  conflicts: string[];
 }

@@ -1,4 +1,5 @@
 import { Clock3, PencilLine, Plus, Power, Trash2 } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect, useState, type ReactNode } from "react";
 
 import type { TimeSlot, TimeSlotRequest } from "@/api";
@@ -36,6 +37,7 @@ function normalizeTimeValue(value: string): string {
 }
 
 export default function TimeSlotsPage() {
+  const { canEdit } = usePermissions();
   const { error: groupError, isLoading: groupsLoading, refetch: refetchGroups } = useScheduleGroup();
   const timeSlotsQuery = useTimeSlotsQuery();
   const createMutation = useCreateTimeSlotMutation();
@@ -110,7 +112,7 @@ export default function TimeSlotsPage() {
     <AppLayout
       title="Time Slots"
       subtitle="Configure exam sessions for the selected period. People and rooms stay shared."
-      actions={
+      actions={canEdit && (
         <TimeSlotDialog
           key={editingSlot?.id ?? "new-slot"}
           open={dialogOpen}
@@ -136,13 +138,13 @@ export default function TimeSlotsPage() {
           onSubmit={handleSubmit}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
-      }
+      )}
     >
       {timeSlots.length === 0 ? (
         <EmptyState
           title="No time slots configured"
           description="Create the first slot before assigning rooms to dates."
-          action={<Button onClick={() => setDialogOpen(true)}>Create time slot</Button>}
+          action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create time slot</Button>}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -164,7 +166,7 @@ export default function TimeSlotsPage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className={canEdit ? "mt-4 flex flex-wrap gap-2" : "hidden"}>
                 <Button size="sm" variant="outline" className="gap-2" onClick={() => { setEditingSlot(timeSlot); setDialogOpen(true); }}>
                   <PencilLine className="h-4 w-4" /> Edit
                 </Button>

@@ -2,6 +2,8 @@ import type {
   Assignment,
   BulkAssignmentRequest,
   AssignmentRequest,
+  GeneratePreviewRequest,
+  GeneratePreviewResponse,
   AssignmentsQuery,
   BackendPaginatedResponse,
   NormalizedPaginatedResponse,
@@ -44,6 +46,17 @@ async function saveAssignmentsBulk(
   });
 }
 
+/** Server-side schedule generation for one date + slot. Nothing is saved. */
+async function generatePreview(
+  payload: GeneratePreviewRequest,
+): Promise<ServiceResponse<GeneratePreviewResponse>> {
+  return performRequest<GeneratePreviewResponse>({
+    url: `${ASSIGNMENTS_ENDPOINT}/generate-preview`,
+    method: "POST",
+    data: payload,
+  });
+}
+
 async function updateAssignment(
   id: UUID,
   payload: AssignmentRequest,
@@ -69,6 +82,7 @@ export const assignmentsService = {
   getAssignments,
   createAssignment,
   saveAssignmentsBulk,
+  generatePreview,
   updateAssignment,
   deleteAssignment,
 };

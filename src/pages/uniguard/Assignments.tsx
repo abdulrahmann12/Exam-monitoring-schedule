@@ -1,4 +1,5 @@
 import { LoaderCircle, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { Assignment, AssignmentRequest, Person, Room, TimeSlot } from "@/api";
@@ -45,6 +46,7 @@ interface AssignmentFormState {
 }
 
 export default function AssignmentsPage() {
+  const { canEdit } = usePermissions();
   const { error: groupError, isLoading: groupsLoading, refetch: refetchGroups } = useScheduleGroup();
   const [searchQuery, setSearchQuery] = useState("");
   const [roomFilter, setRoomFilter] = useState("");
@@ -188,7 +190,7 @@ export default function AssignmentsPage() {
     <AppLayout
       title="Assignments"
       subtitle="Manage room assignments for the selected exam period."
-      actions={
+      actions={canEdit && (
         <div className="flex flex-wrap gap-2">
           <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
             <AlertDialogTrigger asChild>
@@ -244,7 +246,7 @@ export default function AssignmentsPage() {
             isSubmitting={createMutation.isPending || updateMutation.isPending}
           />
         </div>
-      }
+      )}
     >
       <div className="mb-5 grid gap-3 lg:grid-cols-5">
         <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search subject or staff..." />
@@ -278,7 +280,7 @@ export default function AssignmentsPage() {
         <EmptyState
           title="No assignments found"
           description="Broaden the filters or create a new assignment."
-          action={<Button onClick={() => setDialogOpen(true)}>Create assignment</Button>}
+          action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create assignment</Button>}
         />
       ) : (
         <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
@@ -318,7 +320,7 @@ export default function AssignmentsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className={canEdit ? "flex justify-end gap-2" : "hidden"}>
                       <Button size="sm" variant="outline" className="gap-2" onClick={() => { setEditingAssignment(assignment); setDialogOpen(true); }}>
                         <PencilLine className="h-4 w-4" /> Edit
                       </Button>

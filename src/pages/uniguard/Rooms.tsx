@@ -1,7 +1,7 @@
 import { DoorOpen, PencilLine, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { Room, RoomRequest, RoomType } from "@/api";
+import type { HallGender, Room, RoomRequest, RoomType } from "@/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
     useUploadRoomsBulkMutation,
 } from "@/hooks";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
 import { toast } from "sonner";
 
@@ -39,9 +40,11 @@ const DEFAULT_ROOM_FORM: RoomRequest = {
   capacity: 30,
   type: "MEDIUM",
   minInvigilators: 2,
+  hallGender: "MIXED",
 };
 
 export default function Rooms() {
+  const { canEdit } = usePermissions();
   const roomsQuery = useRoomsQuery();
   const createMutation = useCreateRoomMutation();
   const updateMutation = useUpdateRoomMutation();
@@ -99,7 +102,7 @@ export default function Rooms() {
     <AppLayout
       title="Rooms"
       subtitle="Define exam rooms, capacities, and minimum invigilator requirements."
-      actions={
+      actions={canEdit && (
         <RoomDialog
           key={editingRoom?.id ?? "new-room"}
           open={dialogOpen}
@@ -125,22 +128,22 @@ export default function Rooms() {
           onSubmit={handleSubmit}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
-      }
+      )}
     >
       <div className="space-y-6">
-        <BulkUploadCard
+        {canEdit && <BulkUploadCard
           kind="rooms"
           existingNames={rooms.map((room) => room.name)}
           isUploading={uploadBulkMutation.isPending}
           onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
           onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
-        />
+        />}
 
         {rooms.length === 0 ? (
           <EmptyState
             title="No rooms configured"
             description="Create the first room to start assigning exam coverage."
-            action={<Button onClick={() => setDialogOpen(true)}>Create room</Button>}
+            action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create room</Button>}
           />
         ) : (
           <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
@@ -173,10 +176,10 @@ export default function Rooms() {
                       <Badge className={cn("border", ROOM_TYPE_BADGES[room.type])}>{ROOM_TYPE_LABELS[room.type]}</Badge>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
-                      1 Chief Invigilator + {room.minInvigilators} Invigilator{room.minInvigilators > 1 ? "s" : ""}
+                      1 Chief Invigilator + {room.minInvigilators} Invigilator{room.minInvigilators > 1 ? "s" : ""}{room.hallGender && room.hallGender !== "MIXED" ? ` · ${room.hallGender.toLowerCase()} hall` : ""}
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className={cn("flex justify-end gap-2", !canEdit && "hidden")}>
                         <Button size="sm" variant="outline" className="gap-2" onClick={() => { setEditingRoom(room); setDialogOpen(true); }}>
                           <PencilLine className="h-4 w-4" /> Edit
                         </Button>
@@ -223,6 +226,7 @@ function RoomDialog({
             capacity: initialValue.capacity,
             type: initialValue.type,
             minInvigilators: initialValue.minInvigilators,
+            hallGender: initialValue.hallGender ?? "MIXED",
           }
         : DEFAULT_ROOM_FORM,
     );
@@ -256,6 +260,14 @@ function RoomDialog({
               {Object.entries(ROOM_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="room-hall-gender">Hall gender</Label>
+            <select id="room-hall-gender" className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.hallGender ?? "MIXED"} onChange={(event) => setFormState((previous) => ({ ...previous, hallGender: event.target.value as HallGender }))}>
+              <option value="MIXED">Mixed — anyone can supervise</option>
+              <option value="MALE">Male hall — male staff only</option>
+              <option value="FEMALE">Female hall — female staff only</option>
             </select>
           </div>
         </div>

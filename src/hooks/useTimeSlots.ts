@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TimeSlotRequest, TimeSlotsQuery, UUID } from "@/api";
 import { timeSlotsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";

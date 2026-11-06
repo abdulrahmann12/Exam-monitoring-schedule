@@ -1,4 +1,29 @@
 export const queryKeys = {
+  users: {
+    all: ["users"] as const,
+  },
+  reports: {
+    workload: (groupId: string) => ["reports", "workload", groupId] as const,
+    analytics: (groupId: string) => ["reports", "analytics", groupId] as const,
+  },
+  emails: {
+    all: ["emails"] as const,
+    counts: ["emails", "counts"] as const,
+    log: (page: number, status?: string) => ["emails", "log", page, status ?? "all"] as const,
+  },
+  sso: {
+    providers: ["sso", "providers"] as const,
+    connections: ["sso", "connections"] as const,
+    university: ["sso", "university"] as const,
+  },
+  twoFactor: {
+    status: ["twoFactor", "status"] as const,
+  },
+  owner: {
+    all: ["owner"] as const,
+    overview: ["owner", "overview"] as const,
+    activity: ["owner", "activity"] as const,
+  },
   auth: {
     all: ["auth"] as const,
     session: (token?: string | null) => ["auth", "session", token ?? null] as const,

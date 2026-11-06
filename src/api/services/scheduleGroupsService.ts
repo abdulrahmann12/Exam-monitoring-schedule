@@ -2,6 +2,7 @@ import type {
   BackendPaginatedResponse,
   BulkTemplateDownload,
   NormalizedPaginatedResponse,
+  ImportDateOrder,
   ScheduleBulkUploadResult,
   ScheduleGroup,
   ScheduleGroupRequest,
@@ -18,7 +19,7 @@ const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreads
 
 function extractFileName(contentDisposition?: string, fallbackFileName = "schedule-bulk-template.xlsx"): string {
   if (!contentDisposition) return fallbackFileName;
-  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^\";\/]+)/i);
+  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|")?([^";/]+)/i);
   return match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "").trim()) : fallbackFileName;
 }
 
@@ -62,10 +63,12 @@ async function updateScheduleGroup(
   });
 }
 
-async function notifyAssignedStaff(id: UUID): Promise<ServiceResponse<ScheduleNotifyResult>> {
+/** Queues the schedule emails; with resendAll also to people whose schedule is unchanged. */
+async function notifyAssignedStaff(id: UUID, resendAll = false): Promise<ServiceResponse<ScheduleNotifyResult>> {
   return performRequest<ScheduleNotifyResult>({
     url: `${SCHEDULE_GROUPS_ENDPOINT}/${id}/notify`,
     method: "POST",
+    params: resendAll ? { resendAll: true } : undefined,
   });
 }
 
@@ -110,9 +113,13 @@ async function downloadBulkTemplate(id: UUID): Promise<ServiceResponse<BulkTempl
 async function uploadBulkSchedule(
   id: UUID,
   file: File,
+  dateOrder: ImportDateOrder = "AUTO",
 ): Promise<ServiceResponse<ScheduleBulkUploadResult>> {
   const formData = new FormData();
   formData.append("file", file);
+  if (dateOrder !== "AUTO") {
+    formData.append("dateOrder", dateOrder);
+  }
 
   return performRequest<ScheduleBulkUploadResult>(
     {

@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ScheduleGroupSelector } from "@/components/uniguard/ScheduleGroupSelector";
 import { useAuth } from "@/state/auth";
+import { roleLabel, usePermissions } from "@/hooks/usePermissions";
 
 export function AppLayout({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
   const { theme, toggleTheme } = useBranding();
   const { user, logout } = useAuth();
+  const { role } = usePermissions();
 
   return (
     <SidebarProvider>
@@ -35,8 +37,8 @@ export function AppLayout({ children, title, subtitle, actions }: { children: Re
                 <SettingsIcon className="h-4 w-4" />
               </Link>
               <div className="hidden min-w-[140px] text-right text-xs text-muted-foreground md:block">
-                <div className="font-medium text-foreground">{user?.email ?? "Authenticated"}</div>
-                <div>Administrator</div>
+                <div className="font-medium text-foreground">{user?.displayName || user?.email || "Authenticated"}</div>
+                <div>{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}{user?.universityName ? ` · ${user.universityName}` : ""}</div>
               </div>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => void logout()}>
                 <LogOut className="h-4 w-4" /> Log out

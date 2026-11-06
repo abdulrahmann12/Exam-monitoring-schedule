@@ -55,8 +55,8 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
         : exportXlsx(ctx, { mode, date: dateStr });
       toast.success(`${fmt.toUpperCase()} exported`, { description: filename });
       onOpenChange(false);
-    } catch (err: any) {
-      toast.error("Export failed", { description: err?.message ?? "Unknown error" });
+    } catch (err) {
+      toast.error("Export failed", { description: err instanceof Error ? err.message : "Unknown error" });
     }
   };
 

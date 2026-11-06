@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Settings } from "@/api";
 import { settingsService } from "@/services";
+import { resolveRole } from "@/hooks/usePermissions";
 import { useAuth } from "@/state/auth";
-import { unwrapServiceResponse } from "@/utils/serviceResponse";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 export type Theme = "light" | "dark";
 
@@ -48,7 +49,9 @@ function applySettingsToBranding(settings: Settings): Branding {
 }
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  // The platform owner has no university, hence no university settings to load.
+  const hasUniversity = isAuthenticated && resolveRole(user) !== "SUPER_ADMIN";
   const queryClient = useQueryClient();
   const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
 
@@ -56,14 +59,16 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(THEME_KEY) as Theme | null;
       if (raw === "dark" || raw === "light") return raw;
-    } catch {}
+    } catch {
+      // localStorage unavailable (private mode / blocked) — fall back to the default theme
+    }
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
 
   const settingsQuery = useQuery({
     queryKey: ["settings", "detail"],
     queryFn: async () => unwrapServiceResponse(await settingsService.getSettings()),
-    enabled: isAuthenticated,
+    enabled: hasUniversity,
     refetchOnWindowFocus: true,
   });
 
@@ -95,7 +100,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
-    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* storage unavailable — theme just won't persist */ }
   }, [theme]);
 
   useEffect(() => {
