@@ -1273,6 +1273,7 @@ function handleSettingsMutation(path: string, method: DemoMethod, data: unknown)
     minRestMinutes: payload.minRestMinutes ?? existing?.minRestMinutes ?? 0,
     studentsPerInvigilator: payload.studentsPerInvigilator ?? existing?.studentsPerInvigilator ?? 0,
     chiefMaxParallelRooms: payload.chiefMaxParallelRooms ?? existing?.chiefMaxParallelRooms ?? 2,
+    documentSignatures: payload.documentSignatures ?? existing?.documentSignatures ?? [],
   };
 
   demoRuntime.settings.value = nextSettings;

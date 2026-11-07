@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import {
@@ -300,16 +300,28 @@ export default function Users() {
   );
 }
 
+/** The three roles as one compact switch (what each role may do is explained at the top of the page). */
 function RoleSelect({ value, onChange, disabled }: { value: AssignableRole; onChange: (role: AssignableRole) => void; disabled?: boolean }) {
   return (
-    <Select value={value} onValueChange={(role) => onChange(role as AssignableRole)} disabled={disabled}>
-      <SelectTrigger id="user-role"><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {ROLES.map((role) => (
-          <SelectItem key={role.value} value={role.value}>{roleLabel(role.value)} — {role.description}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div role="radiogroup" aria-labelledby="user-role-label" className="grid grid-cols-3 gap-1 rounded-lg bg-muted/60 p-1">
+      {ROLES.map((role) => (
+        <button
+          key={role.value}
+          type="button"
+          role="radio"
+          aria-checked={value === role.value}
+          title={role.description}
+          disabled={disabled}
+          onClick={() => onChange(role.value)}
+          className={cn(
+            "rounded-md border px-2 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+            value === role.value ? "border-primary bg-card text-primary shadow-sm" : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {roleLabel(role.value)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -379,7 +391,7 @@ function CreateUserDialog({ onClose, onInvited }: { onClose: () => void; onInvit
             <Input id="user-name" maxLength={120} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </div>
           <div>
-            <Label htmlFor="user-role">Role</Label>
+            <Label id="user-role-label" className="mb-1.5 block">Role</Label>
             <RoleSelect value={role} onChange={setRole} />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -439,7 +451,7 @@ function EditUserDialog({ user, isSelf, onClose }: { user: AppUser; isSelf: bool
             <Input id="edit-user-name" maxLength={120} value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </div>
           <div>
-            <Label htmlFor="user-role">Role</Label>
+            <Label id="user-role-label" className="mb-1.5 block">Role</Label>
             <RoleSelect value={role} onChange={setRole} disabled={isSelf} />
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">

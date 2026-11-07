@@ -20,6 +20,14 @@ export interface SettingsRequest {
   studentsPerInvigilator?: number;
   /** Rooms one chief invigilator may cover at the same time (1–10). */
   chiefMaxParallelRooms?: number;
+  /** Signature blocks for exported schedules; omit to keep, [] to remove. */
+  documentSignatures?: DocumentSignature[];
+}
+
+/** One signature block at the foot of exported schedules. */
+export interface DocumentSignature {
+  title: string;
+  name: string;
 }
 
 export interface Settings {
@@ -37,4 +45,5 @@ export interface Settings {
   studentsPerInvigilator: number;
   /** Rooms one chief invigilator may cover at the same time (1–10, default 2). */
   chiefMaxParallelRooms: number;
+  documentSignatures: DocumentSignature[];
 }
