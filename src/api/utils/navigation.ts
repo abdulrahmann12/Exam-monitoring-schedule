@@ -5,7 +5,7 @@ export const LOGIN_ROUTE = "/login";
  * (e.g. the startup GET /api/auth/me) must not push them to the sign-in page — otherwise the
  * password link from an invitation or "forgot password" email closes before it can be used.
  */
-export const PUBLIC_ROUTES: readonly string[] = [LOGIN_ROUTE, "/forgot-password", "/reset-password"];
+export const PUBLIC_ROUTES: readonly string[] = [LOGIN_ROUTE, "/forgot-password", "/reset-password", "/confirm-email"];
 
 function isPublicRoute(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;

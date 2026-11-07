@@ -98,7 +98,37 @@ async function setPasswordFromLink(token: string, newPassword: string): Promise<
   );
 }
 
+/** The signed-in person changes their own name. */
+async function updateProfile(payload: { displayName: string }): Promise<ServiceResponse<void>> {
+  return performRequest<void>({
+    url: `${AUTH_ENDPOINT}/profile`,
+    method: "PUT",
+    data: payload,
+  });
+}
+
+export interface EmailChangeStarted {
+  newEmail: string;
+  expiresAt: string;
+  emailSent: boolean;
+  /** Local development without email only: the confirmation link itself. Never set in production. */
+  devLink: string | null;
+}
+
+/** Asks to sign in with another email. Nothing changes until the link sent to that address is opened. */
+async function requestEmailChange(payload: { newEmail: string; currentPassword: string }): Promise<ServiceResponse<EmailChangeStarted>> {
+  return performRequest<EmailChangeStarted>({ url: `${AUTH_ENDPOINT}/email-change`, method: "POST", data: payload });
+}
+
+/** The link from the new address: makes it the sign-in email and signs out every device. */
+async function confirmEmailChange(token: string): Promise<ServiceResponse<{ message: string }>> {
+  return performRequest<{ message: string }>({ url: `${AUTH_ENDPOINT}/email-change/confirm`, method: "POST", data: { token } });
+}
+
 export const authService = {
+  updateProfile,
+  requestEmailChange,
+  confirmEmailChange,
   login,
   demoLogin,
   getCurrentSession,
