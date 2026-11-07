@@ -22,6 +22,7 @@ const SESSION_ENDPOINTS = [
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
   "/api/auth/reset-password/check",
+  "/api/auth/email-change/confirm",
 ];
 
 type RetriableConfig = InternalAxiosRequestConfig & { _authRetried?: boolean };

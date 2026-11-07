@@ -16,3 +16,4 @@ export * from "./useSso";
 export * from "./useEmailOutbox";
 export * from "./useReports";
 
+export * from "./useProfile";

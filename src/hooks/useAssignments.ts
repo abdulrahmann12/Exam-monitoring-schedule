@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AssignmentRequest, AssignmentsQuery, UUID } from "@/api";
 import { assignmentsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
-import { getErrorMessage } from "@/utils/error";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
@@ -15,13 +14,6 @@ const defaultAssignmentsParams: AssignmentsQuery = {
   sortBy: "examDate",
   direction: "ASC",
 };
-
-interface DeleteAllAssignmentsResult {
-  total: number;
-  deleted: number;
-  failed: number;
-  firstError?: string;
-}
 
 const ASSIGNMENTS_ENDPOINT = "/api/assignments";
 
@@ -71,7 +63,11 @@ export function useAssignmentsQuery(params: AssignmentsQuery = defaultAssignment
 
   return useQuery({
     queryKey: queryKeys.assignments.list(scopedParams),
-    queryFn: async () => unwrapServiceResponse(await assignmentsService.getAssignments(scopedParams)),
+    // Every page, not only the first 100: lists are never cut off silently.
+    queryFn: async () => {
+      const items = await fetchAllAssignments(scopedParams);
+      return { items, page: 0, size: items.length, totalItems: items.length, totalPages: 1 };
+    },
     enabled: Boolean(scopedParams.scheduleGroupId),
     refetchOnWindowFocus: true,
   });
@@ -141,33 +137,18 @@ export function useDeleteAssignmentMutation() {
 
 export function useDeleteAllAssignmentsMutation() {
   const queryClient = useQueryClient();
-  const scopedParams = useScopedAssignmentParams(defaultAssignmentsParams);
+  const { activeGroupId } = useScheduleGroup();
 
-  return useSafeMutation<DeleteAllAssignmentsResult, Error, void>({
+  return useSafeMutation<{ deleted: number; examPeriod: string }, Error, void>({
     getFingerprint: () => ({
       method: "DELETE",
       url: ASSIGNMENTS_ENDPOINT,
+      data: activeGroupId,
     }),
+    // One request, one transaction on the server: never half an exam period.
     mutationFn: async () => {
-      const assignments = await fetchAllAssignments(scopedParams);
-      let deleted = 0;
-      let firstError: string | undefined;
-
-      for (const assignment of assignments) {
-        try {
-          await unwrapServiceResponse(await assignmentsService.deleteAssignment(assignment.id));
-          deleted += 1;
-        } catch (errorValue) {
-          firstError ??= getErrorMessage(errorValue);
-        }
-      }
-
-      return {
-        total: assignments.length,
-        deleted,
-        failed: assignments.length - deleted,
-        firstError,
-      };
+      if (!activeGroupId) throw new Error("Choose an exam period first.");
+      return unwrapServiceResponse(await assignmentsService.deleteAllAssignments(activeGroupId));
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });

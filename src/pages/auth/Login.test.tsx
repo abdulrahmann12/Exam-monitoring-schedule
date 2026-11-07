@@ -108,6 +108,16 @@ describe("sign-in with two-step codes", () => {
     expect(screen.getByText(/could not be confirmed/i)).toBeInTheDocument();
   });
 
+  it("shows and hides the password with the eye button", () => {
+    render(<MemoryRouter><Login /></MemoryRouter>);
+    const input = screen.getByLabelText("Password") as HTMLInputElement;
+    expect(input.type).toBe("password");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(input.type).toBe("text");
+    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(input.type).toBe("password");
+  });
+
   it("asks for the two-step code when coming back from Microsoft / Google", () => {
     render(<MemoryRouter initialEntries={["/login?step=two-factor"]}><Login /></MemoryRouter>);
     expect(screen.getByLabelText("6-digit code")).toBeInTheDocument();

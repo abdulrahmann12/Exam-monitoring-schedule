@@ -1,4 +1,5 @@
 import { Copy, Download, ShieldCheck, ShieldOff, Smartphone } from "lucide-react";
+import { AccountUsernameHint } from "@/components/uniguard/AccountUsernameHint";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -129,6 +130,7 @@ function SetupDialog({ onClose, onDone }: { onClose: () => void; onDone: (codes:
           <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (password) void start(); }}>
             <div className="space-y-1">
               <Label htmlFor="mfa-password">Current password</Label>
+              <AccountUsernameHint />
               <Input id="mfa-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
             </div>
             <DialogFooter>
@@ -209,6 +211,7 @@ function PasswordAndCodeDialog({ mode, onClose, onCodes }: {
         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
           <div className="space-y-1">
             <Label htmlFor="mfa-confirm-password">Current password</Label>
+            <AccountUsernameHint />
             <Input id="mfa-confirm-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoFocus />
           </div>
           <div className="space-y-1">

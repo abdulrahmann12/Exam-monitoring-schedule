@@ -100,3 +100,19 @@ describe("hall gender, own subject and student-based seats", () => {
   });
 });
 
+
+describe("time overlap between different slots", () => {
+  it("treats 08:00-09:30 and 09:00-12:00 as the same time, but not back-to-back slots", async () => {
+    const { slotsOverlap, overlappingAssignmentsForSlot } = await import("./constraintEngine");
+    const period1 = { id: "p1", startTime: "08:00", endTime: "09:30" };
+    const morning = { id: "m", startTime: "09:00", endTime: "12:00" };
+    const after = { id: "a", startTime: "09:30", endTime: "11:00" };
+    expect(slotsOverlap(period1, morning)).toBe(true);
+    expect(slotsOverlap(period1, after)).toBe(false);
+
+    const busy = { roomId: "r1", slotId: "p1", chiefInvigilatorId: null, invigilatorIds: ["sara"], locked: false };
+    // The picker for the Morning slot sees Sara's Period 1 exam as happening at the same time.
+    expect(overlappingAssignmentsForSlot([busy], [period1, morning, after] as never, "m")).toEqual([busy]);
+    expect(overlappingAssignmentsForSlot([busy], [period1, morning, after] as never, "a")).toEqual([]);
+  });
+});

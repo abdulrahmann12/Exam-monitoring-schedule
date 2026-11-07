@@ -68,6 +68,11 @@ async function updateAssignment(
   });
 }
 
+/** Deletes every assignment of one exam period, all at once or not at all. */
+async function deleteAllAssignments(scheduleGroupId: UUID): Promise<ServiceResponse<{ deleted: number; examPeriod: string }>> {
+  return performRequest<{ deleted: number; examPeriod: string }>({ url: ASSIGNMENTS_ENDPOINT, method: "DELETE", params: { scheduleGroupId } });
+}
+
 async function deleteAssignment(id: UUID): Promise<ServiceResponse<null>> {
   return performRequest<unknown, null>(
     {
@@ -79,6 +84,7 @@ async function deleteAssignment(id: UUID): Promise<ServiceResponse<null>> {
 }
 
 export const assignmentsService = {
+  deleteAllAssignments,
   getAssignments,
   createAssignment,
   saveAssignmentsBulk,

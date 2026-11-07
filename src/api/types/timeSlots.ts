@@ -5,13 +5,12 @@ export interface TimeSlotsQuery {
   size?: number;
   sortBy?: "id" | "label" | "startTime" | "endTime" | "sortOrder";
   direction?: SortDirection;
-  scheduleGroupId?: UUID;
   label?: string;
   activeOnly?: boolean;
 }
 
+/** Time slots are shared by every exam period, like people and rooms. */
 export interface TimeSlotRequest {
-  scheduleGroupId?: UUID;
   label?: string;
   startTime: ISOTime;
   endTime: ISOTime;
@@ -20,7 +19,6 @@ export interface TimeSlotRequest {
 
 export interface TimeSlot {
   id: UUID;
-  scheduleGroupId?: UUID;
   label: string;
   startTime: ISOTime;
   endTime: ISOTime;

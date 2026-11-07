@@ -386,10 +386,6 @@ function matchesRoomsQuery(room: Room, params?: RoomsQuery): boolean {
 }
 
 function matchesTimeSlotsQuery(timeSlot: TimeSlot, params?: TimeSlotsQuery): boolean {
-  if (params?.scheduleGroupId && timeSlot.scheduleGroupId !== params.scheduleGroupId) {
-    return false;
-  }
-
   if (params?.activeOnly && !timeSlot.active) {
     return false;
   }
@@ -443,7 +439,7 @@ function isRoomsQueryFiltered(params?: RoomsQuery): boolean {
 }
 
 function isTimeSlotsQueryFiltered(params?: TimeSlotsQuery): boolean {
-  return Boolean(params?.scheduleGroupId || params?.activeOnly || params?.label);
+  return Boolean(params?.activeOnly || params?.label);
 }
 
 function isAssignmentsQueryFiltered(params?: AssignmentsQuery): boolean {
@@ -761,7 +757,6 @@ function createTimeSlotRecord(payload: TimeSlotRequest, options?: { createdAt?: 
 
   return {
     id: options?.id ?? createDemoId("demo_slot"),
-    scheduleGroupId: payload.scheduleGroupId,
     label: normalizeWhitespace(payload.label ?? "New time slot") || "New time slot",
     startTime: payload.startTime,
     endTime: payload.endTime,
@@ -1099,7 +1094,7 @@ function handleTimeSlotsMutation(path: string, method: DemoMethod, data: unknown
     return createSuccessResponse(nextTimeSlot);
   }
 
-  const deactivateMatch = path.match(/^\/api\/slots\/([^/]+)\/deactivate$/);
+  const deactivateMatch = path.match(/^\/api\/slots\/([^/]+)\/(deactivate|activate)$/);
   if (deactivateMatch && method === "PATCH") {
     const id = deactivateMatch[1] as UUID;
     const existing = getTimeSlotsStore().records.get(id);
@@ -1110,7 +1105,7 @@ function handleTimeSlotsMutation(path: string, method: DemoMethod, data: unknown
 
     const nextTimeSlot = {
       ...existing,
-      active: false,
+      active: deactivateMatch[2] === "activate",
       updatedAt: createIsoTimestamp(),
     } satisfies TimeSlot;
     upsertCollectionRecord(getTimeSlotsStore(), nextTimeSlot, "update");
@@ -1211,7 +1206,17 @@ function handleAssignmentsBulkSave(data: unknown) {
   return createSuccessResponse(savedAssignments);
 }
 
-function handleAssignmentsMutation(path: string, method: DemoMethod, data: unknown) {
+function handleAssignmentsMutation(path: string, method: DemoMethod, data: unknown, params?: unknown) {
+  if (path === "/api/assignments" && method === "DELETE") {
+    // Clear one exam period (the real server does this in one transaction).
+    const groupId = (params as { scheduleGroupId?: UUID } | undefined)?.scheduleGroupId;
+    const store = getAssignmentsStore();
+    const doomed = [...store.records.values()].filter((assignment) => !groupId || assignment.scheduleGroupId === groupId);
+    doomed.forEach((assignment) => deleteCollectionRecord(store, assignment.id));
+    recalculatePersonAssignmentTotals();
+    return createSuccessResponse({ deleted: doomed.length, examPeriod: "" });
+  }
+
   if (path === "/api/assignments" && method === "POST") {
     const nextAssignment = createAssignmentRecord(data as AssignmentRequest);
     return createSuccessResponse(upsertAssignment(nextAssignment, "create"));
@@ -1267,6 +1272,8 @@ function handleSettingsMutation(path: string, method: DemoMethod, data: unknown)
     maxDutiesPerPeriod: payload.maxDutiesPerPeriod ?? existing?.maxDutiesPerPeriod ?? 0,
     minRestMinutes: payload.minRestMinutes ?? existing?.minRestMinutes ?? 0,
     studentsPerInvigilator: payload.studentsPerInvigilator ?? existing?.studentsPerInvigilator ?? 0,
+    chiefMaxParallelRooms: payload.chiefMaxParallelRooms ?? existing?.chiefMaxParallelRooms ?? 2,
+    documentSignatures: payload.documentSignatures ?? existing?.documentSignatures ?? [],
   };
 
   demoRuntime.settings.value = nextSettings;
@@ -1416,7 +1423,7 @@ export async function resolveDemoSandboxRequest<TResult>(config: DemoCacheableRe
     handlePeopleMutation(path, method, config.data)
     || handleRoomsMutation(path, method, config.data)
     || handleTimeSlotsMutation(path, method, config.data)
-    || handleAssignmentsMutation(path, method, config.data)
+    || handleAssignmentsMutation(path, method, config.data, config.params)
     || handleSettingsMutation(path, method, config.data)
   ) as ReturnType<typeof createSuccessResponse<TResult>> | null;
 }

@@ -46,6 +46,7 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
         department: branding.department,
         examPeriod,
         logoDataUrl: branding.logoDataUrl,
+        signatures: branding.documentSignatures,
       },
     };
     const dateStr = format(date, "yyyy-MM-dd");
@@ -122,7 +123,8 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
 
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">
             <span className="font-medium text-foreground">Header:</span> {branding.university} · {branding.department} · {examPeriod}
-            <div className="mt-1">University and department come from Settings. The exam period follows the header selector.</div>
+            <div className="mt-1"><span className="font-medium text-foreground">Footer (PDF):</span> {branding.documentSignatures.length > 0 ? branding.documentSignatures.map((signature) => signature.title).join(" · ") : "no signatures"}</div>
+            <div className="mt-1">Both come from Settings → University. The exam period follows the header selector.</div>
           </div>
         </div>
 

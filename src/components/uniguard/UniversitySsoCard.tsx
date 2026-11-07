@@ -1,4 +1,4 @@
-import { Building } from "lucide-react";
+import { Building, Info, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,8 +25,33 @@ export function UniversitySsoCard() {
     setTenant(query.data?.microsoftTenantId ?? "");
   }, [query.data]);
 
+  if (providersQuery.isLoading) {
+    return (
+      <section className="flex items-center gap-2 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground shadow-card">
+        <LoaderCircle className="h-4 w-4 animate-spin" /> Checking which sign-in options this server offers…
+      </section>
+    );
+  }
+
   if (!microsoftOffered) {
-    return null;
+    // Nothing to set here yet: the server itself has no Microsoft app registered.
+    return (
+      <section className="space-y-3 rounded-xl border border-border bg-card p-6 shadow-card">
+        <h3 className="text-display flex items-center gap-2 text-lg font-semibold"><Building className="h-4 w-4" /> Sign-in with Microsoft</h3>
+        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="space-y-1.5">
+            <p className="font-medium">Not switched on for this server yet.</p>
+            <p className="text-muted-foreground">
+              The server administrator first registers the app with Microsoft and adds its keys to the server settings
+              (MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET). After a restart, this page lets you connect your university's
+              Microsoft organisation, so your staff can sign in with their university account.
+            </p>
+            <p className="text-muted-foreground">Until then, everyone signs in with their email and password{providersQuery.data?.some((provider) => provider.id === "google") ? " (or with Google, if they connected it)" : ""}.</p>
+          </div>
+        </div>
+      </section>
+    );
   }
   const trimmed = tenant.trim();
   const invalid = trimmed.length > 0 && !TENANT_PATTERN.test(trimmed);

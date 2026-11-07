@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import Index from "@/pages/Index";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import Login from "@/pages/auth/Login";
+import ConfirmEmail from "@/pages/auth/ConfirmEmail";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import People from "@/pages/uniguard/People";
 import Rooms from "@/pages/uniguard/Rooms";
@@ -16,7 +17,11 @@ import Activity from "@/pages/uniguard/Activity";
 import Users from "@/pages/uniguard/Users";
 import Emails from "@/pages/uniguard/Emails";
 import Reports from "@/pages/uniguard/Reports";
-import OwnerPanel from "@/pages/owner/OwnerPanel";
+import OwnerAccount from "@/pages/owner/OwnerAccount";
+import OwnerActivity from "@/pages/owner/OwnerActivity";
+import OwnerLayout from "@/pages/owner/OwnerLayout";
+import OwnerOverview from "@/pages/owner/OwnerOverview";
+import OwnerUniversities from "@/pages/owner/OwnerUniversities";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
 import { OwnerRoute } from "./OwnerRoute";
@@ -45,6 +50,7 @@ export function AppRoutes() {
 
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/confirm-email" element={<ConfirmEmail />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -69,7 +75,13 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<OwnerRoute />}>
-        <Route path="/owner" element={<OwnerPanel />} />
+        <Route path="/owner" element={<OwnerLayout />}>
+          <Route index element={<OwnerOverview />} />
+          <Route path="universities" element={<OwnerUniversities />} />
+          <Route path="activity" element={<OwnerActivity />} />
+          <Route path="account" element={<OwnerAccount />} />
+          <Route path="*" element={<Navigate to="/owner" replace />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

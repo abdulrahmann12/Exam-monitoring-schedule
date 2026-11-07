@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { AddUniversityAdminRequest, CreateUniversityRequest, UpdateUniversityRequest, UUID } from "@/api";
 import { ownerService } from "@/api";
@@ -13,10 +13,11 @@ export function useOwnerOverviewQuery() {
   });
 }
 
-export function useOwnerActivityQuery() {
+export function useOwnerActivityQuery(page = 0, size = 50) {
   return useQuery({
-    queryKey: queryKeys.owner.activity,
-    queryFn: async () => unwrapServiceResponse(await ownerService.getActivity(0, 50)),
+    queryKey: [...queryKeys.owner.activity, page, size],
+    queryFn: async () => unwrapServiceResponse(await ownerService.getActivity(page, size)),
+    placeholderData: keepPreviousData,
   });
 }
 

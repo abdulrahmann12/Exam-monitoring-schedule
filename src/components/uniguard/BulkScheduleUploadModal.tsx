@@ -7,6 +7,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { FormSelect } from "@/components/uniguard/FormSelect";
 import {
   type ChangeEvent,
   type DragEvent,
@@ -234,16 +235,17 @@ export function BulkScheduleUploadModal({
             </Button>
             <label className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">Dates like 03/04/2027 mean:</span>
-              <select
-                className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+              <FormSelect
+                className="h-9 w-56 max-w-full"
                 value={dateOrder}
-                onChange={(event) => setDateOrder(event.target.value as ImportDateOrder)}
+                onValueChange={(value) => setDateOrder(value as ImportDateOrder)}
                 aria-label="Date order"
-              >
-                <option value="AUTO">Decide from the file</option>
-                <option value="DAY_FIRST">Day first (3 April)</option>
-                <option value="MONTH_FIRST">Month first (4 March)</option>
-              </select>
+                options={[
+                  { value: "AUTO", label: "Decide from the file" },
+                  { value: "DAY_FIRST", label: "Day first (3 April)" },
+                  { value: "MONTH_FIRST", label: "Month first (4 March)" },
+                ]}
+              />
             </label>
           </section>
 

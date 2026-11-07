@@ -1,4 +1,5 @@
 import { Link2, Unlink } from "lucide-react";
+import { AccountUsernameHint } from "@/components/uniguard/AccountUsernameHint";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -103,6 +104,7 @@ function ConnectDialog({ provider, returnPath, onClose }: { provider: { id: stri
         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (password) void submit(); }}>
           <div className="space-y-1">
             <Label htmlFor="sso-password">Current password</Label>
+            <AccountUsernameHint />
             <Input id="sso-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
           </div>
           <DialogFooter>

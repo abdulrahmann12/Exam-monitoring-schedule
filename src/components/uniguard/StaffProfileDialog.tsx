@@ -1,11 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useUniGuard } from "@/lib/uniguard/store";
-import { Staff, roleLabel } from "@/lib/uniguard/types";
-import { cn } from "@/lib/utils";
-import { CalendarDays, MapPin, TrendingUp, AlertTriangle, type LucideIcon } from "lucide-react";
-import { DayBadges } from "./DayBadges";
-import { UnavailabilityPanel } from "./UnavailabilityPanel";
+import { CalendarX2 } from "lucide-react";
 import { useMemo } from "react";
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatDay } from "@/lib/dashboard/insights";
+import { useUniGuard } from "@/lib/uniguard/store";
+import { roleLabel } from "@/lib/uniguard/types";
+import { cn } from "@/lib/utils";
 
 interface Props {
   staffId: string | null;
@@ -13,70 +13,125 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const timeLabel = (slot?: { startTime: string; endTime: string }) => slot ? `${slot.startTime} – ${slot.endTime}` : "";
-const initials = (name: string) => name.replace(/^Dr\.\s*/, "").split(" ").map((s) => s[0]).slice(0, 2).join("");
+/** One duty session: a time slot on a day, with every room the person covers in it. */
+interface Duty {
+  date: string;
+  slotId: string;
+  start: string;
+  end: string;
+  slotLabel: string;
+  asChief: boolean;
+  rooms: Array<{ name: string; subject: string }>;
+}
 
+const initials = (name: string) => name.replace(/^Dr\.\s*/i, "").split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+
+/** A person's schedule in the selected exam period, day by day. */
 export function StaffProfileDialog({ staffId, open, onOpenChange }: Props) {
   const { staff, schedule, slots, rooms } = useUniGuard();
-  const person = staff.find((s) => s.id === staffId) ?? null;
+  const person = staff.find((candidate) => candidate.id === staffId) ?? null;
 
-  const assignments = useMemo(() => {
+  const days = useMemo(() => {
     if (!person) return [];
-    const out: { date: string; day: string; slotLabel: string; roomName: string; role: string; subject: string }[] = [];
-    for (const e of schedule) {
-      for (const a of e.assignments) {
-        const room = rooms.find((r) => r.id === a.roomId);
-        const slot = slots.find((s) => s.id === e.slotId);
-        const sName = a.subjectName ?? slot?.subjectName ?? "";
-        const sCode = a.subjectCode ?? slot?.subjectCode ?? "";
-        const subject = sName ? `${sName}${sCode ? ` (${sCode})` : ""}` : "";
-        if (a.chiefInvigilatorId === person.id) out.push({ date: e.date, day: e.day, slotLabel: timeLabel(slot), roomName: room?.name ?? "", role: "Chief Invigilator", subject });
-        a.invigilatorIds.forEach((id, i) => {
-          if (id === person.id) out.push({ date: e.date, day: e.day, slotLabel: timeLabel(slot), roomName: room?.name ?? "", role: `Invigilator #${i + 1}`, subject });
-        });
+    const duties = new Map<string, Duty>();
+    for (const entry of schedule) {
+      const slot = slots.find((candidate) => candidate.id === entry.slotId);
+      for (const assignment of entry.assignments) {
+        const asChief = assignment.chiefInvigilatorId === person.id;
+        if (!asChief && !assignment.invigilatorIds.includes(person.id)) continue;
+        const key = `${entry.date}|${entry.slotId}|${asChief}`;
+        const duty = duties.get(key) ?? {
+          date: entry.date,
+          slotId: entry.slotId,
+          start: slot?.startTime ?? "",
+          end: slot?.endTime ?? "",
+          slotLabel: slot?.label ?? "",
+          asChief,
+          rooms: [],
+        };
+        const subject = [assignment.subjectName, assignment.subjectCode].filter(Boolean).join(" · ");
+        duty.rooms.push({ name: rooms.find((room) => room.id === assignment.roomId)?.name ?? "Room", subject });
+        duties.set(key, duty);
       }
     }
-    return out.sort((a, b) => (a.date + a.slotLabel).localeCompare(b.date + b.slotLabel));
+    const byDay = new Map<string, Duty[]>();
+    for (const duty of [...duties.values()].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))) {
+      duty.rooms.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      byDay.set(duty.date, [...(byDay.get(duty.date) ?? []), duty]);
+    }
+    return [...byDay.entries()];
   }, [person, schedule, slots, rooms]);
 
   if (!person) return null;
-  const tone = person.role === "CHIEF_INVIGILATOR" ? "chief" : "invigilator";
-  const avg = staff.reduce((s, p) => s + p.totalAssignments, 0) / Math.max(1, staff.length);
-  const overAssigned = person.totalAssignments > Math.max(2, Math.ceil(avg * 1.5));
+  const chief = person.role === "CHIEF_INVIGILATOR";
+  const sessions = days.reduce((sum, [, duties]) => sum + duties.length, 0);
+  const roomCount = days.reduce((sum, [, duties]) => sum + duties.reduce((n, duty) => n + duty.rooms.length, 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader><DialogTitle className="sr-only">{person.name}</DialogTitle></DialogHeader>
-        <div className="flex items-start gap-4">
-          <div className={cn("h-14 w-14 rounded-full grid place-items-center text-base font-semibold shrink-0", tone === "chief" ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{initials(person.name)}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-display text-xl font-bold">{person.name}</h2>
-              <span className={cn("text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-medium", tone === "chief" ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{roleLabel(person.role)}</span>
-              {overAssigned && <span className="text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-warning/15 text-warning font-medium"><AlertTriangle className="h-3 w-3" /> Over-assigned</span>}
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
+        <DialogHeader className="border-b border-border px-6 py-4 text-left">
+          <div className="flex items-center gap-3">
+            <div className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-semibold", chief ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>
+              {initials(person.name)}
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3"><span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {person.department}</span><span className="font-mono">{person.id}</span></div>
+            <div className="min-w-0">
+              <DialogTitle className="truncate">{person.name}</DialogTitle>
+              <DialogDescription>
+                {roleLabel(person.role)}{person.department ? ` · ${person.department}` : ""}
+              </DialogDescription>
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3 mt-2">
-          <Stat icon={TrendingUp} label="Total assignments" value={`${person.totalAssignments}×`} />
-          <Stat icon={CalendarDays} label="Working days" value={`${person.workingDays.length}/5`} />
-          <Stat icon={TrendingUp} label="Vs. team avg" value={`${avg > 0 ? Math.round((person.totalAssignments / avg) * 100) : 0}%`} />
-        </div>
-        <div><div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Availability</div><DayBadges value={person.workingDays} readOnly /></div>
-        <UnavailabilityPanel personId={person.id} />
-        <div className="flex-1 min-h-0 overflow-y-auto -mx-6 px-6">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2 sticky top-0 bg-background pb-2">Invigilation history ({assignments.length})</div>
-          {assignments.length === 0 ? <div className="text-sm text-muted-foreground italic py-6 text-center">No assignments yet.</div> : (
-            <div className="space-y-1.5">{assignments.map((a, i) => <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/30 transition-smooth"><div className="text-[11px] font-mono text-muted-foreground w-20 shrink-0">{a.date}</div><div className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground w-12 text-center shrink-0">{a.day}</div><div className="text-xs font-medium w-32 shrink-0">{a.slotLabel}</div><div className="text-xs text-foreground flex-1 truncate"><span className="font-semibold">{a.roomName}</span>{a.subject && <span className="text-muted-foreground"> · {a.subject}</span>}</div><span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0", a.role === "Chief Invigilator" ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{a.role}</span></div>)}</div>
+          {sessions > 0 && (
+            <p className="pt-2 text-sm">
+              <span className="font-semibold">{sessions}</span> {sessions === 1 ? "session" : "sessions"} on <span className="font-semibold">{days.length}</span> {days.length === 1 ? "day" : "days"}
+              {roomCount > sessions && <span className="text-muted-foreground"> · {roomCount} rooms</span>}
+              <span className="text-muted-foreground"> in this exam period</span>
+            </p>
+          )}
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {days.length === 0 ? (
+            <div className="flex flex-col items-center py-10 text-center">
+              <CalendarX2 className="h-9 w-9 text-muted-foreground" />
+              <p className="mt-3 font-medium">No duties yet</p>
+              <p className="text-sm text-muted-foreground">{person.name} has no exams in this exam period.</p>
+            </div>
+          ) : (
+            <ol className="space-y-4">
+              {days.map(([date, duties]) => (
+                <li key={date}>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {formatDay(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </h3>
+                  <ul className="space-y-1.5">
+                    {duties.map((duty) => (
+                      <li key={`${duty.slotId}-${duty.asChief}`} className="flex gap-3 rounded-lg border border-border px-3 py-2.5">
+                        <div className="w-24 shrink-0">
+                          <div className="text-sm font-semibold tabular-nums">{duty.start}–{duty.end}</div>
+                          {duty.slotLabel && <div className="text-[11px] text-muted-foreground">{duty.slotLabel}</div>}
+                        </div>
+                        <div className="min-w-0 flex-1 text-sm">
+                          {duty.rooms.map((room) => (
+                            <div key={room.name} className="truncate">
+                              <span className="font-medium">{room.name}</span>
+                              {room.subject && <span className="text-muted-foreground"> · {room.subject}</span>}
+                            </div>
+                          ))}
+                        </div>
+                        <span className={cn("h-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium", duty.asChief ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>
+                          {duty.asChief ? (duty.rooms.length > 1 ? `Chief · ${duty.rooms.length} rooms` : "Chief") : "Invigilator"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
           )}
         </div>
       </DialogContent>
     </Dialog>
   );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
-  return <div className="rounded-lg border border-border bg-card/50 px-3 py-2"><div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium"><Icon className="h-3 w-3" /> {label}</div><div className="text-display text-lg font-bold mt-0.5">{value}</div></div>;
 }
