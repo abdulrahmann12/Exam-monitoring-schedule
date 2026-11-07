@@ -1,4 +1,5 @@
 import { ArrowRight, CalendarDays, CheckCircle2, DoorOpen, Download, TriangleAlert, Users } from "lucide-react";
+import { useIsPhone } from "@/hooks/use-mobile";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -25,6 +26,11 @@ import { getErrorMessage, showErrorToast } from "@/utils/error";
 const SUBTITLE = "How the selected exam period looks: exams per day, staffing, how fairly the work is spread, and hours for finance.";
 
 type RoleFilter = "ALL" | "CHIEF_INVIGILATOR" | "INVIGILATOR";
+
+/** Cuts long chart labels; the tooltip still shows the full name. */
+function shorten(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 function roleName(role: string | null): string {
   return role === "CHIEF_INVIGILATOR" ? "Chief invigilator" : role === "INVIGILATOR" ? "Invigilator" : "—";
@@ -60,10 +66,10 @@ export default function Reports() {
         <EmptyState title="No exam period selected" description="Choose an exam period at the top of the page." />
       ) : (
         <Tabs defaultValue="overview" className="space-y-5">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="fairness">Workload &amp; fairness</TabsTrigger>
-            <TabsTrigger value="hours">Hours per person</TabsTrigger>
+          <TabsList className="flex w-full sm:inline-flex sm:w-auto">
+            <TabsTrigger value="overview" className="flex-auto sm:flex-none">Overview</TabsTrigger>
+            <TabsTrigger value="fairness" className="flex-auto sm:flex-none"><span aria-hidden="true" className="sm:hidden">Fairness</span><span className="sr-only sm:not-sr-only">Workload &amp; fairness</span></TabsTrigger>
+            <TabsTrigger value="hours" className="flex-auto sm:flex-none"><span aria-hidden="true" className="sm:hidden">Hours</span><span className="sr-only sm:not-sr-only">Hours per person</span></TabsTrigger>
           </TabsList>
           <TabsContent value="overview"><Overview scheduleGroupId={activeGroupId} /></TabsContent>
           <TabsContent value="fairness"><Fairness scheduleGroupId={activeGroupId} /></TabsContent>
@@ -101,7 +107,7 @@ function Overview({ scheduleGroupId }: { scheduleGroupId: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={CalendarDays} label="Exam days" value={String(days.length)} hint={peak ? `Busiest: ${formatDay(peak.date)} (${peak.rooms} rooms)` : undefined} />
         <Kpi icon={DoorOpen} label="Exam rooms" value={String(coverage.examRooms)} hint={`${workload.data.sessions} staff sessions · ${formatHours(workload.data.hours)} h`} />
         <Kpi icon={Users} label="Staff used" value={`${used} of ${total}`} hint={total - used > 0 ? `${total - used} have no duty yet` : "Everyone has duties"} />
@@ -114,7 +120,7 @@ function Overview({ scheduleGroupId }: { scheduleGroupId: string }) {
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="Exam rooms per day" description="Hover a day to see how many rooms still need staff.">
           <ChartContainer config={roomsChart} className="aspect-auto h-64 w-full">
             <BarChart data={days} margin={{ left: -16, right: 8, top: 8 }}>
@@ -182,6 +188,7 @@ function Fairness({ scheduleGroupId }: { scheduleGroupId: string }) {
   const analytics = useAnalyticsQuery(scheduleGroupId);
   const workload = useWorkloadReportQuery(scheduleGroupId);
   const [role, setRole] = useState<Exclude<RoleFilter, "ALL">>("INVIGILATOR");
+  const isPhone = useIsPhone();
 
   const people = useMemo(() => (workload.data?.people ?? []).filter((person) => person.active && person.role === role), [workload.data, role]);
   const bands = useMemo(() => hoursDistribution(people), [people]);
@@ -216,7 +223,7 @@ function Fairness({ scheduleGroupId }: { scheduleGroupId: string }) {
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title={`How the work is spread among ${roleLabel}`} description="People per band of hours worked in this exam period.">
           <ChartContainer config={peopleChart} className="aspect-auto h-60 w-full">
             <BarChart data={bands} margin={{ left: -16, right: 8, top: 8 }}>
@@ -234,15 +241,18 @@ function Fairness({ scheduleGroupId }: { scheduleGroupId: string }) {
         </Panel>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Panel title="Most hours" description="Consider giving their next duties to someone else.">
           {busiest.length === 0 ? <p className="text-sm text-muted-foreground">Nobody has duties yet.</p> : (
             <ol className="space-y-2.5">
               {busiest.map((person) => (
                 <li key={person.personId} className="flex items-center gap-3 text-sm">
-                  <span className="min-w-0 flex-1 truncate">{person.name}<span className="text-muted-foreground"> · {person.department ?? "—"}</span></span>
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(person.hours / Math.max(1, busiest[0].hours)) * 100}%` }} /></div>
-                  <span className="w-14 text-right font-medium tabular-nums">{formatHours(person.hours)} h</span>
+                  <span className="min-w-0 flex-1 sm:truncate">
+                    <span className="block truncate sm:inline">{person.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground sm:inline sm:text-sm"><span className="hidden sm:inline"> · </span>{person.department ?? "—"}</span>
+                  </span>
+                  <div className="h-1.5 w-12 shrink-0 overflow-hidden sm:w-24 rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(person.hours / Math.max(1, busiest[0].hours)) * 100}%` }} /></div>
+                  <span className="w-12 shrink-0 text-right font-medium tabular-nums sm:w-14">{formatHours(person.hours)} h</span>
                 </li>
               ))}
             </ol>
@@ -268,13 +278,25 @@ function Fairness({ scheduleGroupId }: { scheduleGroupId: string }) {
             <BarChart data={departments} layout="vertical" margin={{ left: 8, right: 24 }}>
               <CartesianGrid horizontal={false} strokeDasharray="3 3" />
               <XAxis type="number" tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="department" tickLine={false} axisLine={false} width={150} />
+              <YAxis
+                type="category"
+                dataKey="department"
+                tickLine={false}
+                axisLine={false}
+                width={isPhone ? 96 : 150}
+                tickFormatter={(name: string) => shorten(name, isPhone ? 13 : 22)}
+              />
               <ChartTooltip
                 cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
                 content={<ChartTooltipContent
                   labelFormatter={(_, payload) => {
                     const row = payload?.[0]?.payload as { department: string; staff: number; hoursPerPerson: number; shareOfHours: number } | undefined;
-                    return row ? `${row.department} · ${row.staff} staff · ${formatHours(row.hoursPerPerson)} h each · ${row.shareOfHours}% of all` : "";
+                    return row ? (
+                      <>
+                        <span className="block">{row.department}</span>
+                        <span className="block font-normal text-muted-foreground">{row.staff} staff · {formatHours(row.hoursPerPerson)} h each · {row.shareOfHours}% of all</span>
+                      </>
+                    ) : "";
                   }}
                 />}
               />
@@ -349,7 +371,7 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3" aria-label="Totals">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Totals">
         <Kpi icon={Users} label="Staff with duties" value={`${report.people.length - idleCount} of ${report.people.length}`} />
         <Kpi icon={CalendarDays} label="Sessions" value={String(report.sessions)} />
         <Kpi icon={DoorOpen} label="Hours" value={formatHours(report.hours)} />
@@ -377,7 +399,7 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="stack-table w-full min-w-[760px] text-sm">
               <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Name</th>
@@ -392,29 +414,29 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
               <tbody>
                 {pageOf(rows, page, pageSize).map((row: PersonWorkload) => (
                   <tr key={row.personId} className={cn("border-t border-border", row.sessions === 0 && "text-muted-foreground")}>
-                    <td className="px-4 py-2.5">
+                    <td data-stack="title" className="px-4 py-2.5">
                       <div className="font-medium">{row.name}</div>
                       {!row.active && <div className="text-xs text-muted-foreground">inactive</div>}
                     </td>
-                    <td className="px-4 py-2.5">{row.department ?? "—"}</td>
-                    <td className="px-4 py-2.5">{roleName(row.role)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{row.sessions}</td>
-                    <td className="px-4 py-2.5">
+                    <td data-label="Department" className="px-4 py-2.5">{row.department ?? "—"}</td>
+                    <td data-label="Role" className="px-4 py-2.5">{roleName(row.role)}</td>
+                    <td data-label="Sessions" className="px-4 py-2.5 text-right tabular-nums">{row.sessions}</td>
+                    <td data-label="Hours" className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(row.hours / maxHours) * 100}%` }} /></div>
                         <span className="tabular-nums">{formatHours(row.hours)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{row.roomsAsChief} / {row.roomsAsInvigilator}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{row.days}</td>
+                    <td data-label="Rooms (chief / inv.)" className="px-4 py-2.5 text-right tabular-nums">{row.roomsAsChief} / {row.roomsAsInvigilator}</td>
+                    <td data-label="Days" className="px-4 py-2.5 text-right tabular-nums">{row.days}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/30 font-semibold">
-                  <td className="px-4 py-2.5" colSpan={3}>Total ({rows.length} {rows.length === 1 ? "person" : "people"})</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums">{totals.sessions}</td>
-                  <td className="px-4 py-2.5 tabular-nums">{formatHours(totals.hours)}</td>
+                  <td data-stack="full" className="px-4 py-2.5" colSpan={3}>Total ({rows.length} {rows.length === 1 ? "person" : "people"})</td>
+                  <td data-label="Sessions" className="px-4 py-2.5 text-right tabular-nums">{totals.sessions}</td>
+                  <td data-label="Hours" className="px-4 py-2.5 tabular-nums">{formatHours(totals.hours)}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>

@@ -1,4 +1,5 @@
 import { KeyRound, MonitorX } from "lucide-react";
+import { AccountUsernameHint } from "@/components/uniguard/AccountUsernameHint";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -59,6 +60,7 @@ export function ChangePasswordCard({ onChanged, title = "Account security", desc
       <div className="space-y-3">
         <div>
           <Label htmlFor="current-password">Current password</Label>
+          <AccountUsernameHint />
           <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
         </div>
         <div>

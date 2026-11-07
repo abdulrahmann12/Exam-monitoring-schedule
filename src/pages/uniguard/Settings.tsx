@@ -144,8 +144,8 @@ export default function Settings() {
       title="Settings"
       subtitle={canEditSettings ? "University settings for everyone, and your own account." : "Your own account. University settings are managed by an administrator."}
     >
-      <div className="grid gap-6 pb-20 lg:grid-cols-[15rem_minmax(0,1fr)]">
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Settings sections">
+      <div className="grid grid-cols-1 gap-6 pb-20 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <nav className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto sm:no-scrollbar lg:flex-col" aria-label="Settings sections">
           {sections.map((item) => (
             <button
               key={item.id}
@@ -153,13 +153,13 @@ export default function Settings() {
               onClick={() => setSearchParams({ section: item.id }, { replace: true })}
               aria-current={section === item.id ? "page" : undefined}
               className={cn(
-                "flex shrink-0 items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                "flex min-w-0 shrink-0 items-start gap-2 rounded-xl px-3 py-2.5 text-left transition-colors sm:gap-3",
                 section === item.id ? "bg-card shadow-card ring-1 ring-border" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
               <item.icon className={cn("mt-0.5 h-4 w-4 shrink-0", section === item.id && "text-primary")} />
-              <span>
-                <span className="block text-sm font-medium">{item.label}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">{item.label}</span>
                 <span className="hidden text-xs text-muted-foreground lg:block">{item.hint}</span>
               </span>
             </button>
@@ -174,7 +174,7 @@ export default function Settings() {
             isDemo ? (
               <Card title="My account" description="The demo account is shared, so its password and sign-in cannot be changed." />
             ) : (
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <ChangePasswordCard showSignOutEverywhere />
                 <TwoFactorCard />
                 <div className="xl:col-span-2"><ConnectedAccountsCard /></div>
@@ -223,7 +223,7 @@ function UniversitySection({ form, set, examPeriod }: { form: Form; set: (patch:
   return (
     <>
       <Card title="Name and logo" description="Shown in the sidebar, on the sign-in page and in the browser tab.">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field id="system-name" label="System name" required>
             <Input id="system-name" value={form.systemName} maxLength={120} onChange={(event) => set({ systemName: event.target.value })} />
           </Field>
@@ -245,7 +245,7 @@ function UniversitySection({ form, set, examPeriod }: { form: Form; set: (patch:
       </Card>
 
       <Card title="Exported documents" description="The header and footer of every PDF schedule.">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field id="university-name" label="University" required>
             <Input id="university-name" value={form.universityName} maxLength={160} onChange={(event) => set({ universityName: event.target.value })} />
           </Field>
@@ -284,7 +284,7 @@ function UniversitySection({ form, set, examPeriod }: { form: Form; set: (patch:
                 return (
                   <li key={index} className="flex items-start gap-2 rounded-lg border border-border p-2">
                     <span className="grid h-9 w-6 shrink-0 place-items-center text-xs font-semibold text-muted-foreground">{index + 1}</span>
-                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                    <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
                       <Input
                         list="signature-titles"
                         value={signature.title}
@@ -410,7 +410,7 @@ function Rule({ id, label, example, value, onChange, min = 0, max }: {
   id: string; label: string; example: string; value: number; onChange: (value: number) => void; min?: number; max: number;
 }) {
   return (
-    <div className="grid gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_7rem] sm:items-center">
+    <div className="grid grid-cols-1 gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_7rem] sm:items-center">
       <div>
         <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
         <p className="mt-0.5 text-xs text-muted-foreground">{example}</p>

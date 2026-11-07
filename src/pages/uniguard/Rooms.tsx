@@ -1,4 +1,5 @@
 import { DoorOpen, MoreHorizontal, PencilLine, Plus, Search, Trash2 } from "lucide-react";
+import { FormSelect } from "@/components/uniguard/FormSelect";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { HallGender, Room, RoomRequest, RoomType } from "@/api";
@@ -232,7 +233,7 @@ export default function Rooms() {
             ) : (
               <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-sm">
+                  <table className="stack-table w-full min-w-[640px] text-sm">
                     <thead className="bg-muted/30 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                       <tr>
                         <th className="px-5 py-2.5 font-medium">Room</th>
@@ -245,7 +246,7 @@ export default function Rooms() {
                     <tbody>
                       {pageOf(visible, page, pageSize).map((room) => (
                         <tr key={room.id} className="border-t border-border hover:bg-accent/20">
-                          <td className="px-5 py-3">
+                          <td data-stack="title" className="px-5 py-3">
                             <div className="flex items-center gap-3">
                               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><DoorOpen className="h-4 w-4" /></div>
                               <div className="min-w-0">
@@ -258,10 +259,10 @@ export default function Rooms() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 tabular-nums">{room.capacity}</td>
-                          <td className="px-3 py-3"><Badge className={cn("border", ROOM_TYPE_BADGES[room.type])}>{ROOM_TYPE_LABELS[room.type]}</Badge></td>
-                          <td className="px-3 py-3 text-muted-foreground">1 chief + {room.minInvigilators} invigilator{room.minInvigilators === 1 ? "" : "s"}</td>
-                          <td className="px-3 py-3 text-right">
+                          <td data-label="Seats" className="px-3 py-3 tabular-nums">{room.capacity}</td>
+                          <td data-label="Size" className="px-3 py-3"><Badge className={cn("border", ROOM_TYPE_BADGES[room.type])}>{ROOM_TYPE_LABELS[room.type]}</Badge></td>
+                          <td data-label="Staff needed" data-stack="full" className="px-3 py-3 text-muted-foreground">1 chief + {room.minInvigilators} invigilator{room.minInvigilators === 1 ? "" : "s"}</td>
+                          <td data-stack="actions" className="px-3 py-3 text-right">
                             {canEdit && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -374,20 +375,28 @@ function RoomDialog({
             </div>
           </div>
           <div>
-            <Label>Room type</Label>
-            <select className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.type} onChange={(event) => setFormState((previous) => ({ ...previous, type: event.target.value as RoomType }))}>
-              {Object.entries(ROOM_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <Label htmlFor="room-type">Room type</Label>
+            <FormSelect
+              id="room-type"
+              className="mt-2"
+              value={formState.type}
+              onValueChange={(value) => setFormState((previous) => ({ ...previous, type: value as RoomType }))}
+              options={Object.entries(ROOM_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+            />
           </div>
           <div>
             <Label htmlFor="room-hall-gender">Hall gender</Label>
-            <select id="room-hall-gender" className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.hallGender ?? "MIXED"} onChange={(event) => setFormState((previous) => ({ ...previous, hallGender: event.target.value as HallGender }))}>
-              <option value="MIXED">Mixed — anyone can supervise</option>
-              <option value="MALE">Male hall — male staff only</option>
-              <option value="FEMALE">Female hall — female staff only</option>
-            </select>
+            <FormSelect
+              id="room-hall-gender"
+              className="mt-2"
+              value={formState.hallGender ?? "MIXED"}
+              onValueChange={(value) => setFormState((previous) => ({ ...previous, hallGender: value as HallGender }))}
+              options={[
+                { value: "MIXED", label: "Mixed — anyone can supervise" },
+                { value: "MALE", label: "Male hall — male staff only" },
+                { value: "FEMALE", label: "Female hall — female staff only" },
+              ]}
+            />
           </div>
         </div>
         <DialogFooter>

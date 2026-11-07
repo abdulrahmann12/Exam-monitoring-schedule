@@ -151,13 +151,84 @@ export default function Users() {
     }
   }
 
+  function statusBadges(user: AppUser) {
+    return (
+      <>
+        {user.enabled
+                          ? <Badge variant="outline" className="border-success/30 text-success">Active</Badge>
+                          : <Badge variant="outline" className="border-destructive/30 text-destructive">Disabled</Badge>}
+                        {user.locked && (
+                          <Badge variant="outline" className="border-warning/30 text-warning" title={`Until ${formatDate(user.lockedUntil)}`}>Locked</Badge>
+                        )}
+                        {user.invitePending && <Badge variant="outline" className="border-primary/30 text-primary">Invitation sent</Badge>}
+                        {user.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
+                        {user.twoFactorEnabled && <Badge variant="outline" className="border-success/30 text-success">Two-step on</Badge>}
+      </>
+    );
+  }
+
+  /** Icon buttons in the table; on phone cards the same buttons with their names written out. */
+  function userActions(user: AppUser, withLabels: boolean) {
+    const self = isSelf(user);
+    const size = withLabels ? "sm" : "icon";
+    const labelled = withLabels ? "gap-1.5 px-2.5" : undefined;
+    return (
+      <>
+        {user.locked && (
+          <Button size="sm" variant="outline" className="gap-1" disabled={unlockMutation.isPending} onClick={() => void unlock(user)}>
+            <LockOpen className="h-3.5 w-3.5" /> Unlock
+          </Button>
+        )}
+        {!self && !user.lastLoginAt && (
+          <Button
+            size={size} variant="ghost" className={labelled} aria-label={`Send a new invitation to ${user.email}`}
+            title="Send a new invitation link" disabled={inviteMutation.isPending}
+            onClick={() => void resendInvite(user)}
+          >
+            <Send className="h-4 w-4" />{withLabels && <span aria-hidden="true">Re-invite</span>}
+          </Button>
+        )}
+        {!self && user.twoFactorEnabled && (
+          <Button
+            size={size} variant="ghost" className={labelled} aria-label={`Reset two-step sign-in of ${user.email}`}
+            title="Lost phone: remove two-step sign-in" onClick={() => setResettingTwoFactor(user)}
+          >
+            <Smartphone className="h-4 w-4" />{withLabels && <span aria-hidden="true">Two-step</span>}
+          </Button>
+        )}
+        <Button size={size} variant="ghost" className={labelled} aria-label={`Edit ${user.email}`} onClick={() => setEditing(user)}>
+          <PencilLine className="h-4 w-4" />{withLabels && <span aria-hidden="true">Edit</span>}
+        </Button>
+        {!(withLabels && self) && (
+          <Button
+            size={size} variant="ghost" className={labelled} aria-label={`Reset password of ${user.email}`} disabled={self}
+            title={self ? "Use Settings to change your own password" : "Set a new temporary password"}
+            onClick={() => setResetting(user)}
+          >
+            <KeyRound className="h-4 w-4" />{withLabels && <span aria-hidden="true">Password</span>}
+          </Button>
+        )}
+        {!(withLabels && self) && (
+          <Button
+            size={size} variant="ghost" className={cn(labelled, withLabels && "ml-auto text-destructive hover:text-destructive")}
+            aria-label={`Delete ${user.email}`} disabled={self}
+            title={self ? "You cannot delete your own account" : "Delete user"}
+            onClick={() => setDeleting(user)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />{withLabels && <span aria-hidden="true">Delete</span>}
+          </Button>
+        )}
+      </>
+    );
+  }
+
   return (
     <AppLayout title="Users" subtitle={SUBTITLE} actions={actions}>
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         {ROLES.map((role) => (
-          <div key={role.value} className="rounded-xl border border-border bg-card p-4 shadow-card">
-            <Badge variant="outline" className={ROLE_BADGES[role.value]}>{roleLabel(role.value)}</Badge>
-            <p className="mt-2 text-sm text-muted-foreground">{role.description}</p>
+          <div key={role.value} className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-card md:block md:p-4">
+            <Badge variant="outline" className={cn("shrink-0", ROLE_BADGES[role.value])}>{roleLabel(role.value)}</Badge>
+            <p className="text-sm text-muted-foreground md:mt-2">{role.description}</p>
           </div>
         ))}
       </div>
@@ -165,7 +236,8 @@ export default function Users() {
       {users.length === 0 ? (
         <EmptyState title="No users yet" description="Add the people who should be able to sign in." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+        <>
+        <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-card md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -189,61 +261,11 @@ export default function Users() {
                       <Badge variant="outline" className={ROLE_BADGES[user.role]}>{roleLabel(user.role)}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {user.enabled
-                          ? <Badge variant="outline" className="border-success/30 text-success">Active</Badge>
-                          : <Badge variant="outline" className="border-destructive/30 text-destructive">Disabled</Badge>}
-                        {user.locked && (
-                          <Badge variant="outline" className="border-warning/30 text-warning" title={`Until ${formatDate(user.lockedUntil)}`}>Locked</Badge>
-                        )}
-                        {user.invitePending && <Badge variant="outline" className="border-primary/30 text-primary">Invitation sent</Badge>}
-                        {user.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
-                        {user.twoFactorEnabled && <Badge variant="outline" className="border-success/30 text-success">Two-step on</Badge>}
-                      </div>
+                      {statusBadges(user)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(user.lastLoginAt)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1">
-                        {user.locked && (
-                          <Button size="sm" variant="outline" className="gap-1" disabled={unlockMutation.isPending} onClick={() => void unlock(user)}>
-                            <LockOpen className="h-3.5 w-3.5" /> Unlock
-                          </Button>
-                        )}
-                        {!self && !user.lastLoginAt && (
-                          <Button
-                            size="icon" variant="ghost" aria-label={`Send a new invitation to ${user.email}`}
-                            title="Send a new invitation link" disabled={inviteMutation.isPending}
-                            onClick={() => void resendInvite(user)}
-                          >
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {!self && user.twoFactorEnabled && (
-                          <Button
-                            size="icon" variant="ghost" aria-label={`Reset two-step sign-in of ${user.email}`}
-                            title="Lost phone: remove two-step sign-in" onClick={() => setResettingTwoFactor(user)}
-                          >
-                            <Smartphone className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="icon" variant="ghost" aria-label={`Edit ${user.email}`} onClick={() => setEditing(user)}>
-                          <PencilLine className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon" variant="ghost" aria-label={`Reset password of ${user.email}`} disabled={self}
-                          title={self ? "Use Settings to change your own password" : "Set a new temporary password"}
-                          onClick={() => setResetting(user)}
-                        >
-                          <KeyRound className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon" variant="ghost" aria-label={`Delete ${user.email}`} disabled={self}
-                          title={self ? "You cannot delete your own account" : "Delete user"}
-                          onClick={() => setDeleting(user)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <div className="flex justify-end gap-1">{userActions(user, false)}</div>
                     </td>
                   </tr>
                 );
@@ -251,6 +273,39 @@ export default function Users() {
             </tbody>
           </table>
         </div>
+
+        {/* Phones: one card per user, with labelled buttons (no hover on touch screens). */}
+        <ul className="space-y-3 md:hidden" aria-label="Users">
+          {users.map((user) => {
+            const self = isSelf(user);
+            const name = user.displayName || user.email;
+            return (
+              <li key={user.id} className="rounded-xl border border-border bg-card shadow-card">
+                <div className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 font-semibold text-primary">
+                      {name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">{name}</span>
+                        {self && <span className="shrink-0 rounded-full bg-muted px-2 text-[11px] text-muted-foreground">You</span>}
+                      </div>
+                      {user.displayName && <div className="truncate text-xs text-muted-foreground">{user.email}</div>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className={ROLE_BADGES[user.role]}>{roleLabel(user.role)}</Badge>
+                    {statusBadges(user)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Last sign-in: {formatDate(user.lastLoginAt)}</div>
+                </div>
+                <div className="flex flex-wrap gap-1 border-t border-border px-2 py-2">{userActions(user, true)}</div>
+              </li>
+            );
+          })}
+        </ul>
+        </>
       )}
 
       {creating && <CreateUserDialog onClose={() => setCreating(false)} onInvited={setInviteResult} />}

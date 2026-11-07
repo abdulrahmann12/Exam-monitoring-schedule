@@ -166,6 +166,16 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+  /* Scroll boxes (wide tables, tab strips) must be the "containing block" of hidden
+     screen-reader labels inside them, or those labels make the whole page wider than a phone.
+     Utilities like `absolute`/`sticky` come later and still win. */
+  .overflow-x-auto, .overflow-auto {
+    position: relative;
+  }
+  /* Last safety net: never let the page itself scroll sideways on small screens. */
+  body {
+    overflow-x: clip;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', system-ui, sans-serif;
     @apply tracking-tight;
@@ -176,8 +186,84 @@
   .text-display {
     font-family: 'Outfit', system-ui, sans-serif;
   }
+  /* Sideways strips (tabs, menus) still scroll by swipe, without a thick scroll bar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .glass {
     background: hsl(0 0% 100% / 0.7);
     backdrop-filter: blur(12px);
+  }
+}
+
+/*
+ * .stack-table — a normal table on tablets and up; on phones every row becomes a small card.
+ * Mark cells with data-label="Room" (shown above the value), data-stack="full" (full width),
+ * data-stack="title" (full width, bold, no label) or data-stack="actions" (top-right button).
+ */
+@media (max-width: 767.98px) {
+  table.stack-table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .stack-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .stack-table tbody,
+  .stack-table tfoot {
+    display: block;
+  }
+  .stack-table :is(tbody, tfoot) > tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem 1rem;
+    padding: 0.875rem 1rem;
+  }
+  .stack-table :is(tbody, tfoot) > tr:has(> td[data-stack="actions"]) {
+    padding-right: 3rem;
+  }
+  .stack-table :is(tbody, tfoot) > tr > td {
+    display: block;
+    min-width: 0;
+    padding: 0 !important;
+    white-space: normal !important;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+  .stack-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.125rem;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  .stack-table td[data-stack="full"],
+  .stack-table td[data-stack="title"] {
+    grid-column: 1 / -1;
+  }
+  .stack-table td[data-stack="title"] {
+    font-weight: 600;
+  }
+  .stack-table td[data-stack="actions"] {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+  .stack-table td:empty {
+    display: none;
   }
 }

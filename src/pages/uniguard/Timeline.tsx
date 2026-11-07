@@ -240,7 +240,7 @@ function SlotSection({ date, group, staffMap, canEdit, onProfile }: {
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="stack-table w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-y border-border/70 bg-muted/20 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
               <th className="w-48 px-5 py-2 font-medium">Room</th>
@@ -257,17 +257,17 @@ function SlotSection({ date, group, staffMap, canEdit, onProfile }: {
               const people = assignment.invigilatorIds.map((id) => (id ? staffMap.get(id) : null)).filter((person): person is Staff => Boolean(person));
               return (
                 <tr key={assignment.roomId} className={cn("border-b border-border/60 last:border-b-0 hover:bg-accent/20", !staffing.complete && "bg-warning/[0.03]")}>
-                  <td className="whitespace-nowrap px-5 py-2.5">
+                  <td data-label="Room" className="whitespace-nowrap px-5 py-2.5">
                     {canEdit
                       ? <Link to={editLink} className="font-medium hover:text-primary hover:underline">{room?.name ?? "Unknown room"}</Link>
                       : <span className="font-medium">{room?.name ?? "Unknown room"}</span>}
                   </td>
-                  <td className="px-3 py-2.5 text-xs">
+                  <td data-label="Subject" className="px-3 py-2.5 text-xs">
                     {assignment.subjectName || assignment.subjectCode
                       ? <><span className="font-medium">{assignment.subjectName}</span>{assignment.subjectCode && <span className="text-muted-foreground">{assignment.subjectName ? " · " : ""}{assignment.subjectCode}</span>}</>
                       : <span className="text-muted-foreground/60">—</span>}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td data-label="Chief invigilator" data-stack="full" className="px-3 py-2.5">
                     {chief ? (
                       <span className="inline-flex flex-wrap items-center gap-1.5">
                         <button type="button" onClick={() => onProfile(chief.id)} className="inline-flex items-center gap-1.5 text-xs font-medium text-chief hover:underline">
@@ -286,7 +286,7 @@ function SlotSection({ date, group, staffMap, canEdit, onProfile }: {
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td data-label="Invigilators" data-stack="full" className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       {people.map((person, index) => (
                         <button key={`${person.id}-${index}`} type="button" onClick={() => onProfile(person.id)} className="inline-flex items-center gap-1.5 text-xs font-medium text-invigilator hover:underline">

@@ -130,10 +130,11 @@ export default function People() {
   }
 
   const filtered = query.trim() !== "" || department !== "ALL" || role !== "ALL";
-  const ROLE_TABS: Array<{ value: RoleFilter; label: string; icon: typeof Users }> = [
-    { value: "ALL", label: "Everyone", icon: Users },
-    { value: "CHIEF_INVIGILATOR", label: "Chief invigilators", icon: UserCog },
-    { value: "INVIGILATOR", label: "Invigilators", icon: Users },
+  // `short` is shown on phones so all three tabs fit side by side without a scroll bar.
+  const ROLE_TABS: Array<{ value: RoleFilter; label: string; short: string; icon: typeof Users }> = [
+    { value: "ALL", label: "Everyone", short: "All", icon: Users },
+    { value: "CHIEF_INVIGILATOR", label: "Chief invigilators", short: "Chiefs", icon: UserCog },
+    { value: "INVIGILATOR", label: "Invigilators", short: "Invigilators", icon: Users },
   ];
 
   return (
@@ -155,7 +156,7 @@ export default function People() {
     >
       <div className="space-y-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="inline-flex w-fit rounded-xl border border-border bg-card p-1" role="tablist" aria-label="Role">
+          <div className="flex w-full gap-1 rounded-xl border border-border bg-card p-1 sm:inline-flex sm:w-fit sm:gap-0" role="tablist" aria-label="Role">
             {ROLE_TABS.map((tab) => (
               <button
                 key={tab.value}
@@ -164,11 +165,13 @@ export default function People() {
                 aria-selected={role === tab.value}
                 onClick={() => setRole(tab.value)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  "inline-flex min-w-0 flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium transition-colors sm:flex-none sm:px-3",
                   role === tab.value ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <tab.icon className="h-4 w-4" /> {tab.label}
+                <tab.icon className="hidden h-4 w-4 shrink-0 sm:block" />
+                <span aria-hidden="true" className="truncate sm:hidden">{tab.short}</span>
+                <span className="sr-only sm:not-sr-only">{tab.label}</span>
                 <span className={cn("rounded px-1.5 text-[11px] tabular-nums", role === tab.value ? "bg-primary-foreground/20" : "bg-muted")}>{counts[tab.value]}</span>
               </button>
             ))}
@@ -214,7 +217,7 @@ export default function People() {
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="stack-table w-full min-w-[760px] text-sm">
                 <thead className="bg-muted/30 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-5 py-2.5 font-medium">Person</th>
@@ -300,7 +303,7 @@ function PersonRow({ person, maxLoad, averageLoad, canEdit, onEdit, onDelete }: 
   const initials = person.name.replace(/^Dr\.\s*/i, "").split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   return (
     <tr className="border-t border-border hover:bg-accent/20">
-      <td className="px-5 py-3">
+      <td data-stack="title" className="px-5 py-3">
         <div className="flex items-center gap-3">
           <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold", chief ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{initials}</div>
           <div className="min-w-0">
@@ -318,8 +321,8 @@ function PersonRow({ person, maxLoad, averageLoad, canEdit, onEdit, onDelete }: 
           </div>
         </div>
       </td>
-      <td className="px-3 py-3 text-muted-foreground">{person.department}</td>
-      <td className="px-3 py-3">
+      <td data-label="Department" className="px-3 py-3 text-muted-foreground">{person.department}</td>
+      <td data-label="Available" className="px-3 py-3">
         <div className="flex gap-0.5" aria-label={`Available: ${person.availableDays.join(", ") || "no days"}`}>
           {DAYS.map((day) => {
             const on = person.availableDays.includes(day);
@@ -332,7 +335,7 @@ function PersonRow({ person, maxLoad, averageLoad, canEdit, onEdit, onDelete }: 
         </div>
         {person.availableDays.length === 0 && <div className="mt-0.5 flex items-center gap-1 text-[11px] text-warning"><CalendarOff className="h-3 w-3" /> Never available</div>}
       </td>
-      <td className="w-56 px-3 py-3">
+      <td data-label="Duties this period" data-stack="full" className="w-56 px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
             <div className={cn("h-full rounded-full", heavy ? "bg-warning" : chief ? "bg-chief" : "bg-invigilator")} style={{ width: `${(person.totalAssignments / maxLoad) * 100}%` }} />
@@ -342,7 +345,7 @@ function PersonRow({ person, maxLoad, averageLoad, canEdit, onEdit, onDelete }: 
           </span>
         </div>
       </td>
-      <td className="px-3 py-3 text-right">
+      <td data-stack="actions" className="px-3 py-3 text-right">
         {canEdit && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

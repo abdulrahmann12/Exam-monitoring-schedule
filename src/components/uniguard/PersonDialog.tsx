@@ -118,7 +118,7 @@ export function PersonDialog({ open, person, defaultRole = "CHIEF_INVIGILATOR", 
             </div>
           </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor={`${ids}-name`}>Full name <span className="text-destructive">*</span></Label>
               <Input
@@ -178,7 +178,7 @@ export function PersonDialog({ open, person, defaultRole = "CHIEF_INVIGILATOR", 
             {noDays && <p className="text-xs text-destructive">Choose at least one day.</p>}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Gender</Label>
               <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/60 p-1" role="radiogroup" aria-label="Gender">

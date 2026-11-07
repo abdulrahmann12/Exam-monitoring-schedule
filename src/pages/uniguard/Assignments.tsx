@@ -1,4 +1,5 @@
 import { Lock, MoreHorizontal, PencilLine, Plus, RefreshCcw, Search, Trash2, TriangleAlert } from "lucide-react";
+import { FormSelect } from "@/components/uniguard/FormSelect";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -326,7 +327,7 @@ export default function AssignmentsPage() {
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="stack-table w-full min-w-[900px] text-sm">
                 <thead className="bg-muted/30 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Date</th>
@@ -345,18 +346,18 @@ export default function AssignmentsPage() {
                     const names = assignment.invigilators.map((seat) => seat.invigilatorName).filter(Boolean);
                     return (
                       <tr key={assignment.id} className={cn("border-t border-border hover:bg-accent/20", gap && "bg-warning/[0.03]")}>
-                        <td className="whitespace-nowrap px-4 py-3 font-medium">{formatDay(assignment.examDate)}</td>
-                        <td className="whitespace-nowrap px-3 py-3">
+                        <td data-label="Date" className="whitespace-nowrap px-4 py-3 font-medium">{formatDay(assignment.examDate)}</td>
+                        <td data-label="Time" className="whitespace-nowrap px-3 py-3">
                           <div className="tabular-nums">{hhmm(assignment.startTime ?? slot?.startTime ?? "")}–{hhmm(assignment.endTime ?? slot?.endTime ?? "")}</div>
                           {assignment.slotLabel && <div className="text-[11px] text-muted-foreground">{assignment.slotLabel}</div>}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3">
+                        <td data-label="Room" className="whitespace-nowrap px-3 py-3">
                           <span className="inline-flex items-center gap-1.5">
                             {assignment.locked && <Lock className="h-3.5 w-3.5 text-warning" aria-label="Locked" />}
                             {assignment.roomName}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-xs">
+                        <td data-label="Subject" className="px-3 py-3 text-xs">
                           {assignment.subjectName || assignment.subjectCode ? (
                             <>
                               <div className="font-medium">{assignment.subjectName || assignment.subjectCode}</div>
@@ -364,8 +365,8 @@ export default function AssignmentsPage() {
                             </>
                           ) : <span className="text-muted-foreground/60">—</span>}
                         </td>
-                        <td className="px-3 py-3">{assignment.chiefInvigilatorName ?? <span className="text-muted-foreground/60">—</span>}</td>
-                        <td className="px-3 py-3">
+                        <td data-label="Chief" data-stack="full" className="px-3 py-3">{assignment.chiefInvigilatorName ?? <span className="text-muted-foreground/60">—</span>}</td>
+                        <td data-label="Invigilators" data-stack="full" className="px-3 py-3">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             {names.length > 0 && <span>{names.join(", ")}</span>}
                             {gap && (
@@ -376,7 +377,7 @@ export default function AssignmentsPage() {
                             {assignment.source === "MANUAL" && <span className="rounded bg-muted px-1.5 text-[10px] text-muted-foreground">Manual</span>}
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-right">
+                        <td data-stack="actions" className="px-3 py-3 text-right">
                           {canEdit && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -547,35 +548,42 @@ function AssignmentDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label>Exam date</Label>
             <Input type="date" value={formState.examDate} onChange={(event) => setFormState((previous) => ({ ...previous, examDate: event.target.value }))} />
           </div>
           <div>
-            <Label>Time slot</Label>
-            <select className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.timeSlotId} onChange={(event) => setFormState((previous) => ({ ...previous, timeSlotId: event.target.value }))}>
-              {timeSlots.map((timeSlot) => (
-                <option key={timeSlot.id} value={timeSlot.id}>{timeSlot.label}</option>
-              ))}
-            </select>
+            <Label htmlFor="assignment-slot">Time slot</Label>
+            <FormSelect
+              id="assignment-slot"
+              className="mt-2"
+              value={formState.timeSlotId}
+              onValueChange={(value) => setFormState((previous) => ({ ...previous, timeSlotId: value }))}
+              options={timeSlots.map((timeSlot) => ({ value: timeSlot.id, label: timeSlot.label }))}
+              placeholder="Choose a time slot"
+            />
           </div>
           <div>
-            <Label>Room</Label>
-            <select className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.roomId} onChange={(event) => setFormState((previous) => ({ ...previous, roomId: event.target.value }))}>
-              {rooms.map((room) => (
-                <option key={room.id} value={room.id}>{room.name}</option>
-              ))}
-            </select>
+            <Label htmlFor="assignment-room">Room</Label>
+            <FormSelect
+              id="assignment-room"
+              className="mt-2"
+              value={formState.roomId}
+              onValueChange={(value) => setFormState((previous) => ({ ...previous, roomId: value }))}
+              options={rooms.map((room) => ({ value: room.id, label: room.name }))}
+              placeholder="Choose a room"
+            />
           </div>
           <div>
-            <Label>Chief invigilator</Label>
-            <select className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formState.chiefInvigilatorId} onChange={(event) => setFormState((previous) => ({ ...previous, chiefInvigilatorId: event.target.value }))}>
-              <option value="">Unassigned</option>
-              {chiefs.map((chief) => (
-                <option key={chief.id} value={chief.id}>{chief.name}</option>
-              ))}
-            </select>
+            <Label htmlFor="assignment-chief">Chief invigilator</Label>
+            <FormSelect
+              id="assignment-chief"
+              className="mt-2"
+              value={formState.chiefInvigilatorId}
+              onValueChange={(value) => setFormState((previous) => ({ ...previous, chiefInvigilatorId: value }))}
+              options={[{ value: "", label: "Unassigned" }, ...chiefs.map((chief) => ({ value: chief.id, label: chief.name }))]}
+            />
           </div>
           <div>
             <Label>Subject name</Label>
@@ -591,13 +599,14 @@ function AssignmentDialog({
           <div className="text-sm font-medium">Invigilator positions</div>
           {formState.invigilatorIds.map((invigilatorId, index) => (
             <div key={index}>
-              <Label>Position {index + 1}</Label>
-              <select className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={invigilatorId} onChange={(event) => setFormState((previous) => ({ ...previous, invigilatorIds: previous.invigilatorIds.map((value, valueIndex) => valueIndex === index ? event.target.value : value) }))}>
-                <option value="">Empty slot</option>
-                {invigilators.map((invigilator) => (
-                  <option key={invigilator.id} value={invigilator.id}>{invigilator.name}</option>
-                ))}
-              </select>
+              <Label htmlFor={`assignment-position-${index}`}>Position {index + 1}</Label>
+              <FormSelect
+                id={`assignment-position-${index}`}
+                className="mt-2"
+                value={invigilatorId}
+                onValueChange={(next) => setFormState((previous) => ({ ...previous, invigilatorIds: previous.invigilatorIds.map((value, valueIndex) => valueIndex === index ? next : value) }))}
+                options={[{ value: "", label: "Empty slot" }, ...invigilators.map((invigilator) => ({ value: invigilator.id, label: invigilator.name }))]}
+              />
             </div>
           ))}
           <label className="flex items-center gap-2 text-sm text-muted-foreground">

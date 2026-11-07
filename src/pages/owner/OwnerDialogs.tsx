@@ -67,7 +67,7 @@ export function CreateUniversityDialog({ onClose, onCreated }: { onClose: () => 
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (canSubmit) void submit(); }}>
-          <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_11rem]">
             <div className="space-y-1.5">
               <Label htmlFor="uni-name">University name</Label>
               <Input id="uni-name" value={name} maxLength={160} placeholder="Cairo University" onChange={(event) => setName(event.target.value)} autoFocus />
@@ -90,7 +90,7 @@ export function CreateUniversityDialog({ onClose, onCreated }: { onClose: () => 
           </p>
           <div className="rounded-xl border border-border bg-muted/30 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">First administrator</p>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="uni-admin-email">Email</Label>
                 <Input id="uni-admin-email" type="email" value={adminEmail} maxLength={160} placeholder="admin@university.edu" aria-invalid={emailInvalid} onChange={(event) => setAdminEmail(event.target.value)} />

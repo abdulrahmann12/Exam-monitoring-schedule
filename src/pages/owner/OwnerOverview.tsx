@@ -69,7 +69,7 @@ export default function OwnerOverview() {
         <ErrorState description={getErrorMessage(overviewQuery.error)} onRetry={() => void overviewQuery.refetch()} />
       ) : (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Totals">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Totals">
             {!overview ? (
               Array.from({ length: 4 }, (_, index) => <KpiSkeleton key={index} />)
             ) : (
@@ -87,7 +87,7 @@ export default function OwnerOverview() {
             )}
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Panel
               className="xl:col-span-2"
               title="Needs attention"
@@ -153,7 +153,7 @@ export default function OwnerOverview() {
             </Panel>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Panel title="Most active universities" description="By exam rooms scheduled.">
               {!overview ? (
                 <div className="space-y-3">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-8 w-full" />)}</div>

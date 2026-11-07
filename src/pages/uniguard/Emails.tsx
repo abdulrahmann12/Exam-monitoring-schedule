@@ -56,6 +56,18 @@ export default function Emails() {
     }
   }
 
+  function actionFor(entry: EmailLogEntry) {
+    if (entry.status !== "FAILED") return null;
+    if (entry.kind === "SCHEDULE") {
+      return (
+        <Button size="sm" variant="outline" className="gap-1" disabled={retryMutation.isPending} onClick={() => void retry(entry)}>
+          <RotateCw className="h-3.5 w-3.5" /> Send again
+        </Button>
+      );
+    }
+    return <span className="text-xs text-muted-foreground">Send a new {entry.kind === "INVITE" ? "invitation" : "reset"} from Users</span>;
+  }
+
   async function retryAll() {
     try {
       const result = await retryAllMutation.mutateAsync();
@@ -103,7 +115,8 @@ export default function Emails() {
       ) : (logQuery.data?.items.length ?? 0) === 0 ? (
         <EmptyState title="No emails yet" description="Emails appear here when you send schedules to staff or invite users." />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
+        <>
+        <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-card md:block">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
@@ -141,14 +154,7 @@ export default function Emails() {
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{when(entry.createdAt)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{when(entry.sentAt)}</td>
                     <td className="px-4 py-3 text-right">
-                      {entry.status === "FAILED" && entry.kind === "SCHEDULE" && (
-                        <Button size="sm" variant="outline" className="gap-1" disabled={retryMutation.isPending} onClick={() => void retry(entry)}>
-                          <RotateCw className="h-3.5 w-3.5" /> Send again
-                        </Button>
-                      )}
-                      {entry.status === "FAILED" && entry.kind !== "SCHEDULE" && (
-                        <span className="text-xs text-muted-foreground">Send a new {entry.kind === "INVITE" ? "invitation" : "reset"} from Users</span>
-                      )}
+                      {actionFor(entry)}
                     </td>
                   </tr>
                 );
@@ -156,6 +162,51 @@ export default function Emails() {
             </tbody>
           </table>
         </div>
+
+        {/* Phones: one card per email. */}
+        <ul className="space-y-3 md:hidden" aria-label="Emails">
+          {logQuery.data?.items.map((entry) => {
+            const style = STATUS_STYLE[entry.status] ?? STATUS_STYLE.QUEUED;
+            const name = entry.recipientName ?? entry.recipient;
+            const action = actionFor(entry);
+            return (
+              <li key={entry.id} className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-card">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{name}</div>
+                    {entry.recipientName && <div className="truncate text-xs text-muted-foreground">{entry.recipient}</div>}
+                  </div>
+                  <Badge variant="outline" className={`shrink-0 ${style.className}`}>{style.label}</Badge>
+                </div>
+
+                <div className="rounded-lg bg-muted/50 px-3 py-2">
+                  <div className="text-xs font-medium">{KIND_LABEL[entry.kind] ?? entry.kind}</div>
+                  <div className="line-clamp-2 text-xs text-muted-foreground">{entry.subject}</div>
+                </div>
+
+                {entry.lastError && entry.status !== "SENT" && (
+                  <div className="flex gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                    <MailWarning className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{entry.lastError}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs text-muted-foreground">
+                    {entry.sentAt ? `Sent ${when(entry.sentAt)}` : `Queued ${when(entry.createdAt)}`}
+                    {entry.attempts > 1 && ` · ${entry.attempts} attempts`}
+                    {entry.status === "QUEUED" && entry.attempts > 0 && entry.nextAttemptAt && ` · next try ${when(entry.nextAttemptAt)}`}
+                  </div>
+                  {action}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        </>
       )}
 
       {(logQuery.data?.totalPages ?? 0) > 1 && (

@@ -1,4 +1,5 @@
 import { FlaskConical, LoaderCircle, MailCheck } from "lucide-react";
+import { AccountUsernameHint } from "@/components/uniguard/AccountUsernameHint";
 import { useState } from "react";
 
 import type { EmailChangeStarted } from "@/api/services/authService";
@@ -82,6 +83,7 @@ export function ChangeEmailDialog({ currentEmail, onClose }: { currentEmail: str
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="email-change-password">Current password</Label>
+                <AccountUsernameHint />
                 <Input id="email-change-password" type="password" autoComplete="current-password" value={password} maxLength={128} onChange={(event) => { setPassword(event.target.value); setError(null); }} />
               </div>
               <DialogFooter>

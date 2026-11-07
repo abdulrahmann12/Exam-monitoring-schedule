@@ -104,9 +104,10 @@ export function UnavailabilityPanel({ personId }: { personId: UUID }) {
             <Input type="date" aria-label="Leave end date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
           </label>
         </div>
-        <div className="flex gap-2">
+        {/* Phones: reason on its own row, button below; wider screens: side by side. */}
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input placeholder="Reason (optional), e.g. conference" aria-label="Leave reason" maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} />
-          <Button type="button" className="shrink-0 gap-1" disabled={!canAdd} onClick={() => addMutation.mutate()}>
+          <Button type="button" className="w-full shrink-0 gap-1 sm:w-auto" disabled={!canAdd} onClick={() => addMutation.mutate()}>
             <Plus className="h-4 w-4" /> Add leave
           </Button>
         </div>

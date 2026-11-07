@@ -21,43 +21,44 @@ export function AppLayout({ children, title, subtitle, actions }: { children: Re
       <div className="min-h-screen flex w-full bg-gradient-soft">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-16 flex items-center gap-3 border-b border-border bg-card/60 backdrop-blur px-4 sticky top-0 z-30">
-            <SidebarTrigger />
-            <div className="hidden md:flex items-center gap-2 max-w-sm flex-1">
+          {/* Phones: two rows (menu + icons, then the exam period). Laptops and up: one row. */}
+          <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-border bg-card/80 px-3 py-2 backdrop-blur sm:px-4 md:h-16 md:flex-nowrap md:py-0">
+            <SidebarTrigger className="h-9 w-9 shrink-0" />
+            <div className="hidden max-w-sm flex-1 items-center gap-2 xl:flex">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search page data..." className="pl-9 h-9 bg-background/50" />
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <ScheduleGroupSelector />
+            <ScheduleGroupSelector className="order-last w-full md:order-none md:ml-auto md:w-auto xl:ml-0" />
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 md:ml-0">
               <button onClick={() => void toggleTheme()} aria-label="Toggle theme" className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition-smooth">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
               <Link to="/settings" aria-label="Settings" className="h-9 w-9 grid place-items-center rounded-lg hover:bg-muted transition-smooth">
                 <SettingsIcon className="h-4 w-4" />
               </Link>
-              <div className="hidden min-w-[140px] text-right text-xs text-muted-foreground md:block">
-                <div className="font-medium text-foreground">{user?.displayName || user?.email || "Authenticated"}</div>
-                <div>{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}{user?.universityName ? ` · ${user.universityName}` : ""}</div>
+              <div className="hidden max-w-[220px] text-right text-xs text-muted-foreground xl:block">
+                <div className="truncate font-medium text-foreground">{user?.displayName || user?.email || "Authenticated"}</div>
+                <div className="truncate">{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}{user?.universityName ? ` · ${user.universityName}` : ""}</div>
               </div>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => { if (confirmDiscardUnsaved()) void logout(); }}>
-                <LogOut className="h-4 w-4" /> Log out
+              <Button variant="outline" size="sm" className="h-9 gap-2 px-2.5 sm:px-3" aria-label="Log out" onClick={() => { if (confirmDiscardUnsaved()) void logout(); }}>
+                <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Log out</span>
               </Button>
             </div>
           </header>
 
-          <div className="px-6 py-6 border-b border-border bg-card/30">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h1 className="text-display text-2xl md:text-3xl font-bold">{title}</h1>
+          <div className="border-b border-border bg-card/30 px-4 py-5 sm:px-6 sm:py-6">
+            <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
+              <div className="min-w-0">
+                <h1 className="text-display text-2xl md:text-3xl font-bold break-words">{title}</h1>
                 {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
               </div>
               {actions}
             </div>
           </div>
 
-          <main className="flex-1 p-6 animate-fade-in">{children}</main>
+          <main className="flex-1 min-w-0 px-4 py-5 sm:p-6 animate-fade-in">{children}</main>
         </div>
       </div>
     </SidebarProvider>

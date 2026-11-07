@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/state/auth";
 
 const NAV = [
-  { to: "/owner", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/owner/universities", label: "Universities", icon: Building2, end: false },
-  { to: "/owner/activity", label: "Activity", icon: Activity, end: false },
-  { to: "/owner/account", label: "Account & security", icon: UserCog, end: false },
+  { to: "/owner", label: "Overview", short: "Overview", icon: LayoutDashboard, end: true },
+  { to: "/owner/universities", label: "Universities", short: "Universities", icon: Building2, end: false },
+  { to: "/owner/activity", label: "Activity", short: "Activity", icon: Activity, end: false },
+  { to: "/owner/account", label: "Account & security", short: "Account", icon: UserCog, end: false },
 ] as const;
 
 export default function OwnerLayout() {
@@ -109,25 +109,30 @@ export default function OwnerLayout() {
             </Button>
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-2" aria-label="Owner sections">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => cn(
-                "flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
       </header>
 
-      <main className="min-w-0 flex-1">
+      {/* Phones and tablets: app-style tab bar fixed at the bottom; four equal tabs, always all visible. */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 gap-1 border-t border-border bg-background/95 px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden" aria-label="Owner sections">
+        {NAV.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) => cn(
+              "relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition-colors",
+              isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <item.icon className="h-4 w-4" />
+            <span className="max-w-full truncate">{item.short}</span>
+            {item.to === "/owner" && attention > 0 && (
+              <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-warning" title={`${attention} need attention`} />
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      <main className="min-w-0 flex-1 pb-24 lg:pb-0">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
           <Outlet />
         </div>

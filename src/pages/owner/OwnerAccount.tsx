@@ -69,7 +69,7 @@ export default function OwnerAccount() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div id="two-factor-card" className="scroll-mt-24">
           <TwoFactorCard />
         </div>

@@ -237,7 +237,7 @@ export default function Scheduler() {
           </Popover>
 
           {sortedSlots.length <= TABS_MAX ? (
-            <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted/60 p-1" role="tablist" aria-label="Time slot">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar rounded-lg bg-muted/60 p-1" role="tablist" aria-label="Time slot">
               {sortedSlots.map((slot) => {
                 const active = slot.id === activeSlotId;
                 return (
@@ -340,7 +340,8 @@ export default function Scheduler() {
             </PopoverContent>
           </Popover>
 
-          <div className="flex gap-2 xl:ml-auto">
+          {/* Phones: main button on top, full width; wider screens: side by side. */}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row xl:ml-auto">
             {entry && (
               <Button variant="outline" className="h-10 gap-2" onClick={() => void onAssign(true)} disabled={isGenerating} title="Keep locked rooms, refill the rest">
                 <RotateCw className="h-4 w-4" /> Regenerate unlocked

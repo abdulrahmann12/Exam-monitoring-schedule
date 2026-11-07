@@ -27,8 +27,9 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  // The phone/tablet drawer always shows labels, even if the desktop sidebar is collapsed.
+  const collapsed = state === "collapsed" && !isMobile;
   const location = useLocation();
   const { appName, appTagline, logoDataUrl } = useBranding();
   const { canEdit, canManageUsers, canViewEmails } = usePermissions();
@@ -66,6 +67,7 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         end
+                        onClick={() => { if (isMobile) setOpenMobile(false); }}
                         className={cn(
                           "transition-smooth",
                           active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
