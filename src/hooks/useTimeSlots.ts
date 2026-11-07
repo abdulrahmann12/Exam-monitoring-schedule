@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { TimeSlotRequest, TimeSlotsQuery, UUID } from "@/api";
 import { timeSlotsService } from "@/services";
-import { useScheduleGroup } from "@/state/scheduleGroup";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
 import { queryKeys } from "./queryKeys";
@@ -17,29 +16,19 @@ const defaultTimeSlotParams: TimeSlotsQuery = {
 
 const TIME_SLOTS_ENDPOINT = "/api/slots";
 
-function useScopedTimeSlotParams(params: TimeSlotsQuery = defaultTimeSlotParams): TimeSlotsQuery {
-  const { activeGroupId } = useScheduleGroup();
-  return {
-    ...defaultTimeSlotParams,
-    ...params,
-    scheduleGroupId: params.scheduleGroupId ?? activeGroupId ?? undefined,
-  };
-}
-
+/** Time slots are shared by every exam period (like people and rooms), so no period is sent. */
 export function useTimeSlotsQuery(params: TimeSlotsQuery = defaultTimeSlotParams) {
-  const scopedParams = useScopedTimeSlotParams(params);
+  const fullParams = { ...defaultTimeSlotParams, ...params };
 
   return useQuery({
-    queryKey: queryKeys.timeSlots.list(scopedParams),
-    queryFn: async () => unwrapServiceResponse(await timeSlotsService.getTimeSlots(scopedParams)),
-    enabled: Boolean(scopedParams.scheduleGroupId),
+    queryKey: queryKeys.timeSlots.list(fullParams),
+    queryFn: async () => unwrapServiceResponse(await timeSlotsService.getTimeSlots(fullParams)),
     refetchOnWindowFocus: true,
   });
 }
 
 export function useCreateTimeSlotMutation() {
   const queryClient = useQueryClient();
-  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: (payload: TimeSlotRequest) => ({
@@ -48,10 +37,7 @@ export function useCreateTimeSlotMutation() {
       url: TIME_SLOTS_ENDPOINT,
     }),
     mutationFn: async (payload: TimeSlotRequest) =>
-      unwrapServiceResponse(await timeSlotsService.createTimeSlot({
-        ...payload,
-        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
-      })),
+      unwrapServiceResponse(await timeSlotsService.createTimeSlot(payload)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
@@ -61,7 +47,6 @@ export function useCreateTimeSlotMutation() {
 
 export function useUpdateTimeSlotMutation() {
   const queryClient = useQueryClient();
-  const { activeGroupId } = useScheduleGroup();
 
   return useSafeMutation({
     getFingerprint: ({ id, payload }: { id: UUID; payload: TimeSlotRequest }) => ({
@@ -71,10 +56,7 @@ export function useUpdateTimeSlotMutation() {
       url: `${TIME_SLOTS_ENDPOINT}/${id}`,
     }),
     mutationFn: async ({ id, payload }: { id: UUID; payload: TimeSlotRequest }) =>
-      unwrapServiceResponse(await timeSlotsService.updateTimeSlot(id, {
-        ...payload,
-        scheduleGroupId: payload.scheduleGroupId ?? activeGroupId ?? undefined,
-      })),
+      unwrapServiceResponse(await timeSlotsService.updateTimeSlot(id, payload)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
       await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });

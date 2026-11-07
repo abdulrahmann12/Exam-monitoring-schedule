@@ -18,6 +18,8 @@ export interface SettingsRequest {
   minRestMinutes?: number;
   /** One invigilator per N students; 0 = use each room's minimum. */
   studentsPerInvigilator?: number;
+  /** Rooms one chief invigilator may cover at the same time (1–10). */
+  chiefMaxParallelRooms?: number;
 }
 
 export interface Settings {
@@ -33,4 +35,6 @@ export interface Settings {
   maxDutiesPerPeriod: number;
   minRestMinutes: number;
   studentsPerInvigilator: number;
+  /** Rooms one chief invigilator may cover at the same time (1–10, default 2). */
+  chiefMaxParallelRooms: number;
 }

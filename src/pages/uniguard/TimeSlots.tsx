@@ -49,7 +49,7 @@ export default function TimeSlotsPage() {
 
   if (groupError) {
     return (
-      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
+      <AppLayout title="Time Slots" subtitle="Exam sessions shared by every exam period, like people and rooms.">
         <ErrorState description={getErrorMessage(groupError)} onRetry={() => void refetchGroups()} />
       </AppLayout>
     );
@@ -57,7 +57,7 @@ export default function TimeSlotsPage() {
 
   if (groupsLoading || timeSlotsQuery.isPending) {
     return (
-      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
+      <AppLayout title="Time Slots" subtitle="Exam sessions shared by every exam period, like people and rooms.">
         <LoadingState title="Loading time slots..." description="Fetching slot templates from the backend." />
       </AppLayout>
     );
@@ -65,7 +65,7 @@ export default function TimeSlotsPage() {
 
   if (timeSlotsQuery.isError) {
     return (
-      <AppLayout title="Time Slots" subtitle="Configure exam sessions for the selected period. People and rooms stay shared.">
+      <AppLayout title="Time Slots" subtitle="Exam sessions shared by every exam period, like people and rooms.">
         <ErrorState description={getErrorMessage(timeSlotsQuery.error)} onRetry={() => void timeSlotsQuery.refetch()} />
       </AppLayout>
     );
@@ -111,7 +111,7 @@ export default function TimeSlotsPage() {
   return (
     <AppLayout
       title="Time Slots"
-      subtitle="Configure exam sessions for the selected period. People and rooms stay shared."
+      subtitle="Exam sessions shared by every exam period, like people and rooms."
       actions={canEdit && (
         <TimeSlotDialog
           key={editingSlot?.id ?? "new-slot"}

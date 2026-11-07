@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { confirmDiscardUnsaved } from "@/lib/unsavedChanges";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { LogOut, Moon, Search, Settings as SettingsIcon, Sun } from "lucide-react";
@@ -40,7 +41,7 @@ export function AppLayout({ children, title, subtitle, actions }: { children: Re
                 <div className="font-medium text-foreground">{user?.displayName || user?.email || "Authenticated"}</div>
                 <div>{roleLabel(role)}{role === "VIEWER" ? " · read-only" : ""}{user?.universityName ? ` · ${user.universityName}` : ""}</div>
               </div>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => void logout()}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { if (confirmDiscardUnsaved()) void logout(); }}>
                 <LogOut className="h-4 w-4" /> Log out
               </Button>
             </div>

@@ -1,4 +1,5 @@
 import { CalendarRange, Mail, Plus } from "lucide-react";
+import { confirmDiscardUnsaved } from "@/lib/unsavedChanges";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -95,7 +96,7 @@ export function ScheduleGroupSelector() {
       <CalendarRange className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
       <Select
         value={activeGroupId ?? undefined}
-        onValueChange={setActiveGroupId}
+        onValueChange={(id) => { if (confirmDiscardUnsaved()) setActiveGroupId(id); }}
         disabled={isLoading || groups.length === 0}
       >
         <SelectTrigger className="h-9 w-[160px] bg-background/50 sm:w-[200px]" aria-label="Schedule group">
@@ -115,7 +116,7 @@ export function ScheduleGroupSelector() {
         size="icon"
         className="h-9 w-9 shrink-0"
         aria-label="Create schedule group"
-        onClick={() => setCreateOpen(true)}
+        onClick={() => confirmDiscardUnsaved() && setCreateOpen(true)}
       >
         <Plus className="h-4 w-4" />
       </Button>

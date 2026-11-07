@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useUniGuard } from "@/lib/uniguard/store";
-import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateCcw, Undo2, CheckCircle2, Clock3, BookOpen, DoorOpen } from "lucide-react";
+import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateCcw, Undo2, CheckCircle2, Clock3, BookOpen, DoorOpen, Eraser } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { overlappingAssignmentsForSlot } from "@/lib/uniguard/constraintEngine";
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function ScheduleGrid({ date, slotId }: Props) {
-  const { getEntry, rooms, staff, slots, schedule, manualAssign, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot, studentsPerInvigilator } = useUniGuard();
+  const { getEntry, rooms, staff, slots, schedule, manualAssign, clearRoom, toggleLock, swapInvigilators, addInvigilatorSlot, removeInvigilatorSlot, undoLastChange, resetSlotToGenerated, validateEntry, validateOne, updateAssignmentSubject, addRoomToSlot, studentsPerInvigilator } = useUniGuard();
   const entry = getEntry(date, slotId);
   const slot = slots.find((s) => s.id === slotId);
   const day = dayOfDate(date);
@@ -191,15 +191,27 @@ export function ScheduleGrid({ date, slotId }: Props) {
                     </div>
                   </div>
 
-                  <div className="flex xl:flex-col gap-2 xl:w-28 shrink-0 xl:items-end">
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
-                      assign(assignment.roomId, "chief", 0, null);
-                      assignment.invigilatorIds.forEach((_, i) => assign(assignment.roomId, "invigilator", i, null));
-                    }}>
-                      <Trash2 className="h-3.5 w-3.5" /> Clear
+                  <div className="flex shrink-0 gap-1.5 xl:flex-col xl:items-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn("h-8 gap-1.5 text-xs", assignment.locked && "border-warning/50 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning")}
+                      aria-pressed={assignment.locked}
+                      title={assignment.locked ? "Locked: auto-assign keeps this room as it is. Click to unlock." : "Unlocked: auto-assign may change this room. Click to lock."}
+                      onClick={() => toggleLock(date, slotId, assignment.roomId)}
+                    >
+                      {assignment.locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                      {assignment.locked ? "Locked" : "Unlocked"}
                     </Button>
-                    <Button variant="outline" size="sm" className={cn("gap-1.5", assignment.locked && "border-warning text-warning")} onClick={() => toggleLock(date, slotId, assignment.roomId)}>
-                      {assignment.locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}{assignment.locked ? "Locked" : "Open"}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title="Remove everyone from this room"
+                      aria-label={`Remove everyone from ${room.name}`}
+                      onClick={() => { clearRoom(date, slotId, assignment.roomId); toast.success(`${room.name} cleared`); }}
+                    >
+                      <Eraser className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

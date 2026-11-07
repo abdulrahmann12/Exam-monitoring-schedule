@@ -140,6 +140,8 @@ interface Ctx {
   studentsPerInvigilator: number;
   error: unknown;
   isEntryDirty: (date: string, slotId: string) => boolean;
+  /** Every date + slot with changes not saved yet. */
+  dirtyEntries: Array<{ date: string; slotId: string }>;
   setStaffWorkingDays: (id: string, days: Day[]) => void;
   addStaff: (s: Omit<Staff, "id" | "totalAssignments" | "maxParallelRooms">) => void;
   removeStaff: (id: string) => void;
@@ -150,6 +152,8 @@ interface Ctx {
   generate: (opts: { date: string; slotId: string; roomIds: string[]; partial?: boolean }) => Promise<{ ok: boolean; conflicts: string[] }>;
   toggleLock: (date: string, slotId: string, roomId: string) => void;
   manualAssign: (date: string, slotId: string, roomId: string, kind: "chief" | "invigilator", index: number, staffId: string | null) => { ok: boolean; message?: string };
+  /** Removes the chief and every invigilator of one room in one change (seats stay, empty). */
+  clearRoom: (date: string, slotId: string, roomId: string) => void;
   addInvigilatorSlot: (date: string, slotId: string, roomId: string) => void;
   removeInvigilatorSlot: (date: string, slotId: string, roomId: string, index: number) => void;
   updateAssignmentSubject: (date: string, slotId: string, roomId: string, patch: { subjectName?: string; subjectCode?: string; studentCount?: number | null }) => void;
@@ -393,10 +397,7 @@ function entryKey(date: string, slotId: string): string {
 export function UniGuardProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { activeGroupId, error: groupError } = useScheduleGroup();
-  const slotQueryParams = {
-    ...SLOT_QUERY_PARAMS,
-    scheduleGroupId: activeGroupId ?? undefined,
-  } satisfies TimeSlotsQuery;
+  const slotQueryParams = SLOT_QUERY_PARAMS satisfies TimeSlotsQuery; // shared by every exam period
   const assignmentQueryParams = {
     ...ASSIGNMENTS_QUERY_PARAMS,
     scheduleGroupId: activeGroupId ?? undefined,
@@ -404,6 +405,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   const hasActiveGroup = Boolean(activeGroupId);
   const settingsQuery = useSettingsQuery();
   const studentsPerInvigilator = settingsQuery.data?.studentsPerInvigilator ?? 0;
+  const chiefMaxParallelRooms = settingsQuery.data?.chiefMaxParallelRooms ?? 2;
 
   const peopleQueryParams = {
     ...PEOPLE_QUERY_PARAMS,
@@ -423,7 +425,6 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     queryKeys.timeSlots.all,
     slotQueryParams,
     async (params) => unwrapServiceResponse(await timeSlotsService.getTimeSlots(params)),
-    hasActiveGroup,
   );
   const assignmentsQuery = useAllPagesQuery(
     queryKeys.assignments.all,
@@ -475,13 +476,17 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     }
 
     const nextRooms = roomsQuery.data.items.map(toRoom);
-    const nextStaff = peopleQuery.data.items.map(toStaff);
+    // The chief limit is a university setting (the per-person value is a legacy default).
+    const nextStaff = peopleQuery.data.items.map(toStaff).map((person) => ({
+      ...person,
+      maxParallelRooms: person.role === "CHIEF_INVIGILATOR" ? chiefMaxParallelRooms : 1,
+    }));
     const nextSlots = timeSlotsQuery.data.items.map(toSlot);
 
     setRooms(nextRooms);
     setStaff(nextStaff);
     setSlots(nextSlots);
-  }, [peopleQuery.data, roomsQuery.data, timeSlotsQuery.data]);
+  }, [chiefMaxParallelRooms, peopleQuery.data, roomsQuery.data, timeSlotsQuery.data]);
 
   useEffect(() => {
     if (!assignmentsQuery.data || rooms.length === 0 || scheduleInitializedRef.current) {
@@ -528,6 +533,11 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       return previous;
     });
   }, []);
+
+  const dirtyEntries = useMemo(
+    () => dirtyEntryKeys.map((key) => { const [date, slotId] = key.split("::"); return { date, slotId }; }),
+    [dirtyEntryKeys],
+  );
 
   const isEntryDirty: Ctx["isEntryDirty"] = useCallback(
     (date, slotId) => dirtyEntryKeys.includes(entryKey(date, slotId)),
@@ -610,7 +620,6 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
       setIsPersisting(true);
 
       await unwrapServiceResponse(await timeSlotsService.updateTimeSlot(slotId, {
-        scheduleGroupId: activeGroupId ?? undefined,
         label: currentSlot.label,
         startTime: normalizeTimeValue((patch.startTime ?? currentSlot.startTime) as string),
         endTime: normalizeTimeValue((patch.endTime ?? currentSlot.endTime) as string),
@@ -727,6 +736,15 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
+  const clearRoom: Ctx["clearRoom"] = (date, slotId, roomId) => {
+    applySchedule((prev) => prev.map((e) => e.date === date && e.slotId === slotId ? {
+      ...e,
+      assignments: withSharedFlags(e.assignments.map((a) => a.roomId === roomId
+        ? { ...a, chiefInvigilatorId: null, invigilatorIds: a.invigilatorIds.map(() => null) }
+        : a)),
+    } : e), { date, slotId });
+  };
+
   const addInvigilatorSlot: Ctx["addInvigilatorSlot"] = (date, slotId, roomId) => {
     applySchedule((prev) => prev.map((e) => e.date === date && e.slotId === slotId ? { ...e, assignments: e.assignments.map((a) => a.roomId === roomId ? { ...a, invigilatorIds: [...a.invigilatorIds, null] } : a) } : e), { date, slotId });
   };
@@ -837,7 +855,7 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
   const removeRoom: Ctx["removeRoom"] = (id) => setRooms((prev) => prev.filter((r) => r.id !== id));
 
   const value = useMemo<Ctx>(() => ({
-    staff, rooms, slots, schedule, isLoading, isPersisting, isGenerating, studentsPerInvigilator, error, isEntryDirty, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign,
+    staff, rooms, slots, schedule, isLoading, isPersisting, isGenerating, studentsPerInvigilator, error, isEntryDirty, dirtyEntries, setStaffWorkingDays, addStaff, removeStaff, addRoom, removeRoom, updateSlot, generate, toggleLock, manualAssign, clearRoom,
     addInvigilatorSlot, removeInvigilatorSlot, updateAssignmentSubject, addRoomToSlot, swapInvigilators, saveEntry, undoLastChange, resetSlotToGenerated, getEntry, validateEntry, validateOne,
   }), [
     addInvigilatorSlot,
@@ -849,9 +867,11 @@ export function UniGuardProvider({ children }: { children: ReactNode }) {
     getEntry,
     isLoading,
     isEntryDirty,
+    dirtyEntries,
     isGenerating,
     isPersisting,
     manualAssign,
+    clearRoom,
     removeInvigilatorSlot,
     removeRoom,
     removeStaff,

@@ -386,10 +386,6 @@ function matchesRoomsQuery(room: Room, params?: RoomsQuery): boolean {
 }
 
 function matchesTimeSlotsQuery(timeSlot: TimeSlot, params?: TimeSlotsQuery): boolean {
-  if (params?.scheduleGroupId && timeSlot.scheduleGroupId !== params.scheduleGroupId) {
-    return false;
-  }
-
   if (params?.activeOnly && !timeSlot.active) {
     return false;
   }
@@ -443,7 +439,7 @@ function isRoomsQueryFiltered(params?: RoomsQuery): boolean {
 }
 
 function isTimeSlotsQueryFiltered(params?: TimeSlotsQuery): boolean {
-  return Boolean(params?.scheduleGroupId || params?.activeOnly || params?.label);
+  return Boolean(params?.activeOnly || params?.label);
 }
 
 function isAssignmentsQueryFiltered(params?: AssignmentsQuery): boolean {
@@ -761,7 +757,6 @@ function createTimeSlotRecord(payload: TimeSlotRequest, options?: { createdAt?: 
 
   return {
     id: options?.id ?? createDemoId("demo_slot"),
-    scheduleGroupId: payload.scheduleGroupId,
     label: normalizeWhitespace(payload.label ?? "New time slot") || "New time slot",
     startTime: payload.startTime,
     endTime: payload.endTime,
@@ -1267,6 +1262,7 @@ function handleSettingsMutation(path: string, method: DemoMethod, data: unknown)
     maxDutiesPerPeriod: payload.maxDutiesPerPeriod ?? existing?.maxDutiesPerPeriod ?? 0,
     minRestMinutes: payload.minRestMinutes ?? existing?.minRestMinutes ?? 0,
     studentsPerInvigilator: payload.studentsPerInvigilator ?? existing?.studentsPerInvigilator ?? 0,
+    chiefMaxParallelRooms: payload.chiefMaxParallelRooms ?? existing?.chiefMaxParallelRooms ?? 2,
   };
 
   demoRuntime.settings.value = nextSettings;

@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS_FORM: SettingsRequest = {
   maxDutiesPerPeriod: 0,
   minRestMinutes: 0,
   studentsPerInvigilator: 0,
+  chiefMaxParallelRooms: 2,
 };
 
 export default function Settings() {
@@ -53,6 +54,7 @@ export default function Settings() {
       maxDutiesPerPeriod: Math.max(0, Math.trunc(formState.maxDutiesPerPeriod ?? 0)),
       minRestMinutes: Math.max(0, Math.trunc(formState.minRestMinutes ?? 0)),
       studentsPerInvigilator: Math.max(0, Math.trunc(formState.studentsPerInvigilator ?? 0)),
+      chiefMaxParallelRooms: Math.min(10, Math.max(1, Math.trunc(formState.chiefMaxParallelRooms ?? 2))),
     }),
     [formState, settingsQuery.data?.examPeriod],
   );
@@ -74,6 +76,7 @@ export default function Settings() {
       maxDutiesPerPeriod: settingsQuery.data.maxDutiesPerPeriod ?? 0,
       minRestMinutes: settingsQuery.data.minRestMinutes ?? 0,
       studentsPerInvigilator: settingsQuery.data.studentsPerInvigilator ?? 0,
+      chiefMaxParallelRooms: settingsQuery.data.chiefMaxParallelRooms ?? 2,
     });
   }, [settingsQuery.data]);
 
@@ -190,6 +193,15 @@ export default function Settings() {
             value={formState.studentsPerInvigilator ?? 0}
             onChange={(value) => setFormState((previous) => ({ ...previous, studentsPerInvigilator: value }))}
           />
+          <NumberSetting
+            id="chief-max-parallel-rooms"
+            label="Rooms one chief invigilator can cover at the same time"
+            hint="1 to 10 (default 2). Invigilators always cover one room at a time."
+            min={1}
+            max={10}
+            value={formState.chiefMaxParallelRooms ?? 2}
+            onChange={(value) => setFormState((previous) => ({ ...previous, chiefMaxParallelRooms: value }))}
+          />
         </fieldset>
 
         <fieldset disabled={!canEditSettings} className="min-w-0 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card lg:col-span-2">
@@ -256,11 +268,11 @@ function ThemeCard({
   );
 }
 
-function NumberSetting({ id, label, hint, max, value, onChange }: { id: string; label: string; hint: string; max: number; value: number; onChange: (value: number) => void }) {
+function NumberSetting({ id, label, hint, min = 0, max, value, onChange }: { id: string; label: string; hint: string; min?: number; max: number; value: number; onChange: (value: number) => void }) {
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type="number" min={0} max={max} value={value} onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))} />
+      <Input id={id} type="number" min={min} max={max} value={value} onChange={(event) => onChange(Math.max(min, Number(event.target.value) || min))} />
       <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
   );
