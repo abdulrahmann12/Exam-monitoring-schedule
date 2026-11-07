@@ -4,6 +4,8 @@ import type {
   AuditEvent,
   BackendPaginatedResponse,
   CreateUniversityRequest,
+  DeleteUniversityRequest,
+  DeletedUniversity,
   NormalizedPaginatedResponse,
   OwnerOverview,
   OwnerUniversity,
@@ -28,6 +30,11 @@ async function updateUniversity(id: UUID, payload: UpdateUniversityRequest): Pro
   return performRequest<OwnerUniversity>({ url: `${OWNER_ENDPOINT}/universities/${id}`, method: "PUT", data: payload });
 }
 
+/** Deletes a switched-off university and everything in it. Cannot be undone. */
+async function deleteUniversity(id: UUID, payload: DeleteUniversityRequest): Promise<ServiceResponse<DeletedUniversity>> {
+  return performRequest<DeletedUniversity>({ url: `${OWNER_ENDPOINT}/universities/${id}/delete`, method: "POST", data: payload });
+}
+
 /** Adds an administrator, or sends a fresh link to one who has not signed in yet. */
 async function addAdmin(id: UUID, payload: AddUniversityAdminRequest): Promise<ServiceResponse<AdminInvitation>> {
   return performRequest<AdminInvitation>({ url: `${OWNER_ENDPOINT}/universities/${id}/admins`, method: "POST", data: payload });
@@ -49,6 +56,7 @@ export const ownerService = {
   getOverview,
   createUniversity,
   updateUniversity,
+  deleteUniversity,
   addAdmin,
   getActivity,
   resetAdminTwoFactor,

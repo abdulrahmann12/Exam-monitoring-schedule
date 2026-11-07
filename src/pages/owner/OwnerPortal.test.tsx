@@ -27,7 +27,10 @@ const overview: OwnerOverview = {
   ],
 };
 
+const deleteUniversity = vi.fn(async () => ({ name: "Old College", accounts: 5, people: 20, rooms: 4, examRooms: 10, emails: 0 }));
+
 vi.mock("@/hooks", () => ({
+  useDeleteUniversityMutation: () => ({ mutateAsync: deleteUniversity, isPending: false }),
   useOwnerOverviewQuery: () => ({ data: overview, isLoading: false, isError: false, refetch: vi.fn() }),
   useOwnerActivityQuery: () => ({ data: { items: [], page: 0, size: 50, totalItems: 0, totalPages: 0 }, isLoading: false, isError: false, refetch: vi.fn() }),
   useCreateUniversityMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -36,7 +39,10 @@ vi.mock("@/hooks", () => ({
   useResetAdminTwoFactorMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-vi.mock("@/state/auth", () => ({ useAuth: () => ({ user: { email: "owner@x.test", displayName: "Nour Owner" } }) }));
+vi.mock("@/state/auth", () => {
+  const auth = { user: { email: "owner@x.test", displayName: "Nour Owner" } };
+  return { useAuth: () => auth, useOptionalAuth: () => auth };
+});
 
 function renderAt(path: string) {
   return render(
@@ -93,5 +99,33 @@ describe("owner universities", () => {
   it("opens the new-university form from the overview button", () => {
     renderAt("/owner/universities?new=1");
     expect(screen.getByRole("dialog", { name: "New university" })).toBeInTheDocument();
+  });
+});
+
+describe("delete a university", () => {
+  it("needs the exact name and the password, then deletes", async () => {
+    renderAt("/owner/universities?open=u3");
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog", { name: /Delete “Old College” for good/ });
+    const submit = within(dialog).getByRole("button", { name: /Delete university/ });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText(/to confirm/), { target: { value: "old college" } });
+    fireEvent.change(within(dialog).getByLabelText("Your password"), { target: { value: "secret-pass" } });
+    expect(within(dialog).getByText(/does not match/)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByLabelText(/to confirm/), { target: { value: "Old College" } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await vi.waitFor(() => expect(deleteUniversity).toHaveBeenCalledWith({ id: "u3", payload: { confirmName: "Old College", password: "secret-pass" } }));
+  });
+
+  it("asks to switch a university off before it can be deleted", async () => {
+    renderAt("/owner/universities?open=u1");
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = await screen.findByRole("dialog", { name: /Delete “Cairo University” for good/ });
+    expect(within(dialog).getByRole("button", { name: /Switch off first/ })).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Your password")).not.toBeInTheDocument();
   });
 });

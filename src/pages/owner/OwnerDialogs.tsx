@@ -1,4 +1,4 @@
-import { Building2, Copy, MailCheck, MailWarning, ShieldOff, UserPlus } from "lucide-react";
+import { Building2, Copy, MailCheck, MailWarning, Power, ShieldOff, Trash2, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AccountUsernameHint } from "@/components/uniguard/AccountUsernameHint";
 import {
   useAddUniversityAdminMutation,
   useCreateUniversityMutation,
+  useDeleteUniversityMutation,
   useResetAdminTwoFactorMutation,
   useUpdateUniversityMutation,
 } from "@/hooks";
@@ -186,6 +188,116 @@ export function ToggleDialog({ university, onClose }: { university: OwnerUnivers
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/**
+ * Deletes a university for good. Only for a switched-off university; asks for its exact name and the
+ * owner's password (the server checks both again).
+ */
+export function DeleteUniversityDialog({ university, onClose, onSwitchOffFirst, onDeleted }: {
+  university: OwnerUniversity;
+  onClose: () => void;
+  onSwitchOffFirst: () => void;
+  onDeleted: () => void;
+}) {
+  const mutation = useDeleteUniversityMutation();
+  const [confirmName, setConfirmName] = useState("");
+  const [password, setPassword] = useState("");
+  const nameMatches = confirmName.trim() === university.name;
+  const canDelete = !university.active && nameMatches && password.length > 0 && !mutation.isPending;
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!canDelete) return;
+    try {
+      const result = await mutation.mutateAsync({ id: university.id, payload: { confirmName: confirmName.trim(), password } });
+      toast.success(`“${result.name}” was deleted.`, {
+        description: `${result.accounts} account(s), ${result.people} people, ${result.rooms} room(s) and ${result.examRooms} exam room(s) removed.`,
+      });
+      onDeleted();
+    } catch (error) {
+      setPassword("");
+      showErrorToast(error, { title: "The university was not deleted." });
+    }
+  }
+
+  const removed = [
+    { label: "Accounts", value: university.accounts },
+    { label: "Staff", value: university.people },
+    { label: "Rooms", value: university.rooms },
+    { label: "Exam rooms", value: university.scheduledExamRooms },
+  ];
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogIcon tone="destructive"><Trash2 className="h-5 w-5" /></DialogIcon>
+          <DialogTitle>Delete “{university.name}” for good?</DialogTitle>
+          <DialogDescription>
+            Everything in this university is removed: its accounts, staff, rooms, time slots, exam periods, schedules,
+            settings, emails and activity log. <span className="font-semibold text-foreground">This cannot be undone.</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <dl className="grid grid-cols-2 gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm sm:grid-cols-4">
+          {removed.map((item) => (
+            <div key={item.label}>
+              <dt className="text-[11px] text-muted-foreground">{item.label}</dt>
+              <dd className="font-semibold tabular-nums">{item.value.toLocaleString()}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {university.active ? (
+          <div className="space-y-3">
+            <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-sm">
+              This university is still switched on. Switch it off first: everyone is signed out and nobody can work in it
+              while it is deleted. If you only want to stop it for now, switching off is enough; its data is kept.
+            </p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="button" className="gap-2" onClick={onSwitchOffFirst}><Power className="h-4 w-4" /> Switch off first</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={(event) => void submit(event)}>
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-university-name">
+                Type <span className="font-semibold">{university.name}</span> to confirm
+              </Label>
+              <Input
+                id="delete-university-name"
+                value={confirmName}
+                onChange={(event) => setConfirmName(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={confirmName.length > 0 && !nameMatches}
+              />
+              {confirmName.length > 0 && !nameMatches && <p className="text-xs text-destructive">The name does not match yet (capital letters count).</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-university-password">Your password</Label>
+              <AccountUsernameHint />
+              <Input
+                id="delete-university-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="submit" variant="destructive" className="gap-2" disabled={!canDelete}>
+                <Trash2 className="h-4 w-4" /> {mutation.isPending ? "Deleting..." : "Delete university"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

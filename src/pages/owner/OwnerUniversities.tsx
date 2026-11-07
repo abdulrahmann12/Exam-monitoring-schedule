@@ -1,10 +1,10 @@
 import {
-  CalendarCheck, DoorOpen, MoreHorizontal, PencilLine, Plus, Power, RotateCcw, Search, ShieldCheck, UserPlus, Users, UsersRound,
+  CalendarCheck, DoorOpen, MoreHorizontal, PencilLine, Plus, Power, RotateCcw, Search, ShieldCheck, Trash2, UserPlus, Users, UsersRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import type { AdminInvitation, OwnerUniversity, OwnerUniversityAdmin } from "@/api";
+import { DEFAULT_UNIVERSITY_ID, type AdminInvitation, type OwnerUniversity, type OwnerUniversityAdmin } from "@/api";
 import { ErrorState } from "@/components/app/PageState";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/utils/error";
 
 import {
-  AddAdminDialog, CreateUniversityDialog, InvitationDialog, RenameDialog, ResetTwoFactorDialog, ToggleDialog,
+  AddAdminDialog, CreateUniversityDialog, DeleteUniversityDialog, InvitationDialog, RenameDialog, ResetTwoFactorDialog, ToggleDialog,
 } from "./OwnerDialogs";
 import { AdminStatusBadge, IssueChips, PageHeader, StatusBadge, UniversityAvatar } from "./OwnerUi";
 
@@ -30,6 +30,7 @@ type DialogState =
   | { kind: "create" }
   | { kind: "rename"; university: OwnerUniversity }
   | { kind: "toggle"; university: OwnerUniversity }
+  | { kind: "delete"; university: OwnerUniversity }
   | { kind: "add-admin"; university: OwnerUniversity; email?: string }
   | { kind: "reset-2fa"; university: OwnerUniversity; admin: OwnerUniversityAdmin }
   | { kind: "invitation"; result: AdminInvitation }
@@ -85,6 +86,7 @@ export default function OwnerUniversities() {
   const actions = (university: OwnerUniversity) => ({
     rename: () => setDialog({ kind: "rename", university }),
     toggle: () => setDialog({ kind: "toggle", university }),
+    remove: university.id === DEFAULT_UNIVERSITY_ID ? undefined : () => setDialog({ kind: "delete", university }),
     addAdmin: (email?: string) => setDialog({ kind: "add-admin", university, email }),
     resetTwoFactor: (admin: OwnerUniversityAdmin) => setDialog({ kind: "reset-2fa", university, admin }),
   });
@@ -212,6 +214,11 @@ export default function OwnerUniversities() {
                           <DropdownMenuItem onSelect={act.toggle} className={university.active ? "text-destructive focus:text-destructive" : undefined}>
                             <Power className="mr-2 h-4 w-4" /> {university.active ? "Switch off" : "Switch on"}
                           </DropdownMenuItem>
+                          {act.remove && (
+                            <DropdownMenuItem onSelect={act.remove} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete university…
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -234,6 +241,14 @@ export default function OwnerUniversities() {
       )}
       {dialog?.kind === "rename" && <RenameDialog university={dialog.university} onClose={closeDialog} />}
       {dialog?.kind === "toggle" && <ToggleDialog university={dialog.university} onClose={closeDialog} />}
+      {dialog?.kind === "delete" && (
+        <DeleteUniversityDialog
+          university={universities.find((university) => university.id === dialog.university.id) ?? dialog.university}
+          onClose={closeDialog}
+          onSwitchOffFirst={() => setDialog({ kind: "toggle", university: dialog.university })}
+          onDeleted={() => { closeDialog(); if (openId === dialog.university.id) setOpen(null); }}
+        />
+      )}
       {dialog?.kind === "add-admin" && (
         <AddAdminDialog university={dialog.university} initialEmail={dialog.email} onClose={closeDialog} onInvited={(result) => setDialog({ kind: "invitation", result })} />
       )}
@@ -243,10 +258,11 @@ export default function OwnerUniversities() {
   );
 }
 
-function UniversityDetails({ university, rename, toggle, addAdmin, resetTwoFactor }: {
+function UniversityDetails({ university, rename, toggle, remove, addAdmin, resetTwoFactor }: {
   university: OwnerUniversity;
   rename: () => void;
   toggle: () => void;
+  remove?: () => void;
   addAdmin: (email?: string) => void;
   resetTwoFactor: (admin: OwnerUniversityAdmin) => void;
 }) {
@@ -277,6 +293,11 @@ function UniversityDetails({ university, rename, toggle, addAdmin, resetTwoFacto
           <Button size="sm" variant="outline" className={cn("gap-1.5", university.active && "text-destructive hover:text-destructive")} onClick={toggle}>
             <Power className="h-4 w-4" /> {university.active ? "Switch off" : "Switch on"}
           </Button>
+          {remove && (
+            <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:text-destructive" onClick={remove}>
+              <Trash2 className="h-4 w-4" /> Delete
+            </Button>
+          )}
         </div>
       </SheetHeader>
 
