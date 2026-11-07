@@ -1094,7 +1094,7 @@ function handleTimeSlotsMutation(path: string, method: DemoMethod, data: unknown
     return createSuccessResponse(nextTimeSlot);
   }
 
-  const deactivateMatch = path.match(/^\/api\/slots\/([^/]+)\/deactivate$/);
+  const deactivateMatch = path.match(/^\/api\/slots\/([^/]+)\/(deactivate|activate)$/);
   if (deactivateMatch && method === "PATCH") {
     const id = deactivateMatch[1] as UUID;
     const existing = getTimeSlotsStore().records.get(id);
@@ -1105,7 +1105,7 @@ function handleTimeSlotsMutation(path: string, method: DemoMethod, data: unknown
 
     const nextTimeSlot = {
       ...existing,
-      active: false,
+      active: deactivateMatch[2] === "activate",
       updatedAt: createIsoTimestamp(),
     } satisfies TimeSlot;
     upsertCollectionRecord(getTimeSlotsStore(), nextTimeSlot, "update");

@@ -81,6 +81,23 @@ export function useDeactivateTimeSlotMutation() {
   });
 }
 
+export function useActivateTimeSlotMutation() {
+  const queryClient = useQueryClient();
+
+  return useSafeMutation({
+    getFingerprint: (id: UUID) => ({
+      method: "PATCH",
+      resourceId: id,
+      url: `${TIME_SLOTS_ENDPOINT}/${id}/activate`,
+    }),
+    mutationFn: async (id: UUID) => unwrapServiceResponse(await timeSlotsService.activateTimeSlot(id)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.timeSlots.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+  });
+}
+
 export function useDeleteTimeSlotMutation() {
   const queryClient = useQueryClient();
 

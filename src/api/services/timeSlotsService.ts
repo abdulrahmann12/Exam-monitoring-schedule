@@ -58,7 +58,16 @@ async function deactivateTimeSlot(id: UUID): Promise<ServiceResponse<TimeSlot>> 
   });
 }
 
+/** Undo a deactivation. */
+async function activateTimeSlot(id: UUID): Promise<ServiceResponse<TimeSlot>> {
+  return performRequest<TimeSlot>({
+    url: `${TIME_SLOTS_ENDPOINT}/${id}/activate`,
+    method: "PATCH",
+  });
+}
+
 export const timeSlotsService = {
+  activateTimeSlot,
   getTimeSlots,
   createTimeSlot,
   updateTimeSlot,
