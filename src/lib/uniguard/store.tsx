@@ -19,6 +19,7 @@ import { assignmentsService, peopleService, roomsService, timeSlotsService } fro
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+import { fetchAllPaginatedItems, type PaginatedQueryParams } from "@/api/utils/pagination";
 
 import { overlappingAssignmentsForSlot, validateAssignment, validateSlotAssignments } from "./constraintEngine";
 import { Assignment, Day, dayOfDate, minInvigilatorsForCapacity, requiredInvigilators, Room, ScheduleEntry, Slot, Staff } from "./types";
@@ -53,66 +54,6 @@ const ASSIGNMENTS_QUERY_PARAMS = {
   sortBy: "examDate",
   direction: "ASC",
 } as const;
-
-type PaginatedQueryParams = {
-  page?: number;
-  size?: number;
-};
-
-function clampPageSize(size?: number): number {
-  if (typeof size !== "number" || !Number.isFinite(size)) {
-    return MAX_BACKEND_PAGE_SIZE;
-  }
-
-  return Math.min(Math.max(Math.trunc(size), 1), MAX_BACKEND_PAGE_SIZE);
-}
-
-async function fetchAllPaginatedItems<TItem, TParams extends PaginatedQueryParams>(
-  params: TParams,
-  fetchPage: (params: TParams) => Promise<NormalizedPaginatedResponse<TItem>>,
-): Promise<NormalizedPaginatedResponse<TItem>> {
-  const baseParams = {
-    ...params,
-    page: 0,
-    size: clampPageSize(params.size),
-  } as TParams;
-
-  const firstPage = await fetchPage(baseParams);
-  const totalPages = Math.max(
-    firstPage.totalPages,
-    firstPage.totalItems > 0 ? Math.ceil(firstPage.totalItems / baseParams.size) : 0,
-  );
-
-  if (totalPages <= 1) {
-    return {
-      ...firstPage,
-      page: 0,
-      size: baseParams.size,
-    };
-  }
-
-  const remainingPages = await Promise.all(
-    Array.from({ length: totalPages - 1 }, (_, index) =>
-      fetchPage({
-        ...baseParams,
-        page: index + 1,
-      } as TParams)),
-  );
-
-  const items = [
-    ...firstPage.items,
-    ...remainingPages.flatMap((page) => page.items),
-  ];
-
-  return {
-    ...firstPage,
-    items,
-    page: 0,
-    size: baseParams.size,
-    totalItems: Math.max(firstPage.totalItems, items.length),
-    totalPages,
-  };
-}
 
 function useAllPagesQuery<TItem, TParams extends PaginatedQueryParams>(
   queryKey: readonly unknown[],

@@ -7,10 +7,13 @@ import type { UUID } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDemoUser } from "@/hooks/useDemoUser";
+import { formatDay } from "@/lib/dashboard/insights";
 import { usePermissions } from "@/hooks/usePermissions";
 import { peopleService } from "@/services";
 import { showErrorToast } from "@/utils/error";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+
+const LEAVE_DATE: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
 
 /**
  * Date-specific leave for one person (conference, sickness, travel…).
@@ -72,7 +75,7 @@ export function UnavailabilityPanel({ personId }: { personId: UUID }) {
         <ul className="space-y-1">
           {periods.map((period) => (
             <li key={period.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1 text-xs">
-              <span className="font-mono">{period.startDate === period.endDate ? period.startDate : `${period.startDate} → ${period.endDate}`}</span>
+              <span className="font-medium">{period.startDate === period.endDate ? formatDay(period.startDate, LEAVE_DATE) : `${formatDay(period.startDate, LEAVE_DATE)} → ${formatDay(period.endDate, LEAVE_DATE)}`}</span>
               {period.reason && <span className="truncate text-muted-foreground">· {period.reason}</span>}
               {!readOnly && <Button
                 type="button"
@@ -90,13 +93,23 @@ export function UnavailabilityPanel({ personId }: { personId: UUID }) {
         </ul>
       )}
 
-      {!readOnly && <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
-        <Input type="date" aria-label="Leave start date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-        <Input type="date" aria-label="Leave end date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
-        <Input placeholder="Reason (optional)" maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} />
-        <Button type="button" size="sm" className="gap-1" disabled={!canAdd} onClick={() => addMutation.mutate()}>
-          <Plus className="h-3 w-3" /> Add
-        </Button>
+      {!readOnly && <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            From
+            <Input type="date" aria-label="Leave start date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+          </label>
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            To (optional)
+            <Input type="date" aria-label="Leave end date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
+          </label>
+        </div>
+        <div className="flex gap-2">
+          <Input placeholder="Reason (optional), e.g. conference" aria-label="Leave reason" maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} />
+          <Button type="button" className="shrink-0 gap-1" disabled={!canAdd} onClick={() => addMutation.mutate()}>
+            <Plus className="h-4 w-4" /> Add leave
+          </Button>
+        </div>
       </div>}
     </div>
   );

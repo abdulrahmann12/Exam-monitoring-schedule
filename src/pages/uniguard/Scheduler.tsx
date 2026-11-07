@@ -17,6 +17,7 @@ import { getErrorMessage } from "@/utils/error";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, Clock3, DoorOpen, FileDown, FileSpreadsheet, LoaderCircle, RotateCw, Save, Search, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const TITLE = "Scheduler";
@@ -29,9 +30,14 @@ const SUBTITLE = "Allocate chiefs and invigilators for the selected exam period.
 export default function Scheduler() {
   const { rooms, slots, schedule, generate, getEntry, validateEntry, isLoading, error, isPersisting, isGenerating, isEntryDirty, dirtyEntries, saveEntry } = useUniGuard();
   const { activeGroupId, activeGroup } = useScheduleGroup();
-  const [date, setDate] = useState<Date>(new Date());
+  // Opened from the Timeline: /scheduler?date=2026-11-17&slot=<id> starts on that exam.
+  const [searchParams] = useSearchParams();
+  const [date, setDate] = useState<Date>(() => {
+    const requested = searchParams.get("date");
+    return requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? parseISO(requested) : new Date();
+  });
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [slotId, setSlotId] = useState("");
+  const [slotId, setSlotId] = useState(() => searchParams.get("slot") ?? "");
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
@@ -39,8 +45,9 @@ export default function Scheduler() {
   const [roomSearch, setRoomSearch] = useState("");
 
   useEffect(() => {
+    // Wait for the slots to load: clearing the choice while the list is still empty would lose
+    // a slot asked for in the address (/scheduler?date=…&slot=… from the Timeline).
     if (slots.length === 0) {
-      setSlotId("");
       return;
     }
 

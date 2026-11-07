@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BulkDuplicateStrategy, PeopleQuery, PersonRequest, UUID } from "@/api";
 import { bulkUploadService, peopleService } from "@/services";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+import { fetchAllPaginatedItems } from "@/api/utils/pagination";
 
 import { useScheduleGroup } from "@/state/scheduleGroup";
 
@@ -30,7 +31,8 @@ export function usePeopleQuery(params: PeopleQuery = defaultPeopleParams) {
 
   return useQuery({
     queryKey: queryKeys.people.list(queryParams),
-    queryFn: async () => unwrapServiceResponse(await peopleService.getPeople(queryParams)),
+    // Every page, not only the first 100: lists must never be cut off silently.
+    queryFn: async () => fetchAllPaginatedItems(queryParams, async (pageParams) => unwrapServiceResponse(await peopleService.getPeople(pageParams))),
     placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: true,
   });

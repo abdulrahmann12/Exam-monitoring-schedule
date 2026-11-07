@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BulkDuplicateStrategy, RoomRequest, RoomsQuery, UUID } from "@/api";
 import { bulkUploadService, roomsService } from "@/services";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+import { fetchAllPaginatedItems } from "@/api/utils/pagination";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";
@@ -21,7 +22,8 @@ const ROOMS_TEMPLATE_ENDPOINT = "/api/bulk/rooms/template";
 export function useRoomsQuery(params: RoomsQuery = defaultRoomsParams) {
   return useQuery({
     queryKey: queryKeys.rooms.list(params),
-    queryFn: async () => unwrapServiceResponse(await roomsService.getRooms(params)),
+    // Every page, not only the first 100: lists must never be cut off silently.
+    queryFn: async () => fetchAllPaginatedItems(params, async (pageParams) => unwrapServiceResponse(await roomsService.getRooms(pageParams))),
     placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: true,
   });

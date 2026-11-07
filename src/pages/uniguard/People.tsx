@@ -1,32 +1,41 @@
-import { PencilLine, Plus, Trash2, UserCog, Users } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-
-import type { Person, PersonRequest, PersonRole, WeekDay } from "@/api";
-import { EmptyState, ErrorState, LoadingState } from "@/components/app/PageState";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AppLayout } from "@/components/uniguard/AppLayout";
-import { BulkUploadCard } from "@/components/uniguard/BulkUploadCard";
-import { DayBadges } from "@/components/uniguard/DayBadges";
-import { UnavailabilityPanel } from "@/components/uniguard/UnavailabilityPanel";
-import {
-    useCreatePersonMutation,
-    useDeletePersonMutation,
-    useDownloadPeopleTemplateMutation,
-    usePeopleQuery,
-    useUpdatePersonMutation,
-    useUploadPeopleBulkMutation,
-} from "@/hooks";
-import { roleLabel } from "@/lib/uniguard/types";
-import { cn } from "@/lib/utils";
-import { usePermissions } from "@/hooks/usePermissions";
-import { getErrorMessage, showErrorToast } from "@/utils/error";
+import { CalendarOff, MoreHorizontal, PencilLine, Plus, Search, Trash2, UserCog, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-const DEFAULT_AVAILABLE_DAYS: WeekDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu"];
+import type { Person, PersonRequest, PersonRole } from "@/api";
+import { ErrorState, LoadingState } from "@/components/app/PageState";
+import { pageOf, TablePagination } from "@/components/app/TablePagination";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AppLayout } from "@/components/uniguard/AppLayout";
+import { BulkImportDialog } from "@/components/uniguard/BulkImportDialog";
+import { PersonDialog } from "@/components/uniguard/PersonDialog";
+import {
+  useCreatePersonMutation,
+  useDeletePersonMutation,
+  useDownloadPeopleTemplateMutation,
+  usePeopleQuery,
+  useUpdatePersonMutation,
+  useUploadPeopleBulkMutation,
+} from "@/hooks";
+import { usePermissions } from "@/hooks/usePermissions";
+import { DAYS } from "@/lib/uniguard/types";
+import { cn } from "@/lib/utils";
+import { getErrorMessage, showErrorToast } from "@/utils/error";
+
+const TITLE = "People";
+const SUBTITLE = "Chief invigilators and invigilators, shared by every exam period. Workload counts the selected period.";
+
+type RoleFilter = "ALL" | PersonRole;
+type SortKey = "name" | "workload-high" | "workload-low" | "department";
 
 export default function People() {
   const { canEdit } = usePermissions();
@@ -36,12 +45,49 @@ export default function People() {
   const deleteMutation = useDeletePersonMutation();
   const uploadBulkMutation = useUploadPeopleBulkMutation();
   const downloadTemplateMutation = useDownloadPeopleTemplateMutation();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingPerson, setEditingPerson] = useState<Person | null>(null);
+  const [dialog, setDialog] = useState<{ open: boolean; person: Person | null; role: PersonRole }>({ open: false, person: null, role: "CHIEF_INVIGILATOR" });
+  const [deleting, setDeleting] = useState<Person | null>(null);
+  const [role, setRole] = useState<RoleFilter>("ALL");
+  const [query, setQuery] = useState("");
+  const [department, setDepartment] = useState("ALL");
+  const [sort, setSort] = useState<SortKey>("name");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
+
+  const people = useMemo(() => peopleQuery.data?.items ?? [], [peopleQuery.data]);
+  const departments = useMemo(() => [...new Set(people.map((person) => person.department).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [people]);
+  const counts = useMemo(() => ({
+    ALL: people.length,
+    CHIEF_INVIGILATOR: people.filter((person) => person.role === "CHIEF_INVIGILATOR").length,
+    INVIGILATOR: people.filter((person) => person.role === "INVIGILATOR").length,
+  }), [people]);
+  const averageLoad = useMemo(() => people.reduce((sum, person) => sum + person.totalAssignments, 0) / Math.max(1, people.length), [people]);
+  const maxLoad = useMemo(() => Math.max(1, ...people.map((person) => person.totalAssignments)), [people]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const list = people.filter((person) => {
+      if (role !== "ALL" && person.role !== role) return false;
+      if (department !== "ALL" && person.department !== department) return false;
+      if (!needle) return true;
+      return [person.name, person.email, person.department, ...(person.subjectCodes ?? [])].some((text) => (text ?? "").toLowerCase().includes(needle));
+    });
+    const byName = (a: Person, b: Person) => a.name.replace(/^Dr\.\s*/i, "").localeCompare(b.name.replace(/^Dr\.\s*/i, ""));
+    const sorters: Record<SortKey, (a: Person, b: Person) => number> = {
+      name: byName,
+      "workload-high": (a, b) => b.totalAssignments - a.totalAssignments || byName(a, b),
+      "workload-low": (a, b) => a.totalAssignments - b.totalAssignments || byName(a, b),
+      department: (a, b) => a.department.localeCompare(b.department) || byName(a, b),
+    };
+    return [...list].sort(sorters[sort]);
+  }, [people, role, department, query, sort]);
+
+  // A new search or filter starts again at the first page.
+  useEffect(() => setPage(0), [role, department, query, sort]);
 
   if (peopleQuery.isLoading) {
     return (
-      <AppLayout title="People" subtitle="Manage Chief Invigilators and Invigilators directly from backend data.">
+      <AppLayout title={TITLE} subtitle={SUBTITLE}>
         <LoadingState title="Loading people..." description="Retrieving the people directory." />
       </AppLayout>
     );
@@ -49,345 +95,267 @@ export default function People() {
 
   if (peopleQuery.isError) {
     return (
-      <AppLayout title="People" subtitle="Manage Chief Invigilators and Invigilators directly from backend data.">
+      <AppLayout title={TITLE} subtitle={SUBTITLE}>
         <ErrorState description={getErrorMessage(peopleQuery.error)} onRetry={() => void peopleQuery.refetch()} />
       </AppLayout>
     );
   }
 
-  const people = peopleQuery.data?.items ?? [];
-  const chiefs = people.filter((person) => person.role === "CHIEF_INVIGILATOR");
-  const invigilators = people.filter((person) => person.role === "INVIGILATOR");
+  const openAdd = () => setDialog({ open: true, person: null, role: role === "INVIGILATOR" ? "INVIGILATOR" : "CHIEF_INVIGILATOR" });
 
   async function handleSubmit(payload: PersonRequest) {
     try {
-      if (editingPerson) {
-        await updateMutation.mutateAsync({ id: editingPerson.id, payload });
-        toast.success("Person updated.");
+      if (dialog.person) {
+        await updateMutation.mutateAsync({ id: dialog.person.id, payload });
+        toast.success(`${payload.name} updated.`);
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success("Person created.");
+        toast.success(`${payload.name} added.`);
       }
-
-      setDialogOpen(false);
-      setEditingPerson(null);
+      setDialog((previous) => ({ ...previous, open: false }));
     } catch (error) {
       showErrorToast(error);
     }
   }
 
-  async function handleDelete(id: string) {
+  async function confirmDelete() {
+    if (!deleting) return;
     try {
-      await deleteMutation.mutateAsync(id);
-      toast.success("Person deleted.");
+      await deleteMutation.mutateAsync(deleting.id);
+      toast.success(`${deleting.name} deleted.`);
+      setDeleting(null);
     } catch (error) {
-      showErrorToast(error);
+      showErrorToast(error, { title: "Could not delete this person." });
     }
   }
+
+  const filtered = query.trim() !== "" || department !== "ALL" || role !== "ALL";
+  const ROLE_TABS: Array<{ value: RoleFilter; label: string; icon: typeof Users }> = [
+    { value: "ALL", label: "Everyone", icon: Users },
+    { value: "CHIEF_INVIGILATOR", label: "Chief invigilators", icon: UserCog },
+    { value: "INVIGILATOR", label: "Invigilators", icon: Users },
+  ];
 
   return (
     <AppLayout
-      title="People"
-      subtitle="Manage Chief Invigilators and Invigilators. Workload counts only the selected exam period."
+      title={TITLE}
+      subtitle={SUBTITLE}
       actions={canEdit && (
-        <PersonDialog
-          key={editingPerson?.id ?? "new-person"}
-          open={dialogOpen}
-          title={editingPerson ? "Edit person" : "Add person"}
-          initialValue={editingPerson}
-          trigger={
-            <Button
-              className="gap-2"
-              onClick={() => {
-                setEditingPerson(null);
-                setDialogOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" /> Add person
-            </Button>
-          }
-          onOpenChange={(nextOpen) => {
-            setDialogOpen(nextOpen);
-            if (!nextOpen) {
-              setEditingPerson(null);
-            }
-          }}
-          onSubmit={handleSubmit}
-          isSubmitting={createMutation.isPending || updateMutation.isPending}
-        />
+        <div className="flex flex-wrap gap-2">
+          <BulkImportDialog
+            kind="persons"
+            existingNames={people.map((person) => person.name)}
+            isUploading={uploadBulkMutation.isPending}
+            onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
+            onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
+          />
+          <Button className="gap-2" onClick={openAdd}><Plus className="h-4 w-4" /> Add person</Button>
+        </div>
       )}
     >
-      <div className="space-y-6">
-        {canEdit && <BulkUploadCard
-          kind="persons"
-          existingNames={people.map((person) => person.name)}
-          isUploading={uploadBulkMutation.isPending}
-          onDownloadTemplate={() => downloadTemplateMutation.mutateAsync()}
-          onUpload={({ file, duplicateStrategy }) => uploadBulkMutation.mutateAsync({ file, duplicateStrategy })}
-        />}
-
-      <Tabs defaultValue="chiefs" className="space-y-5">
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="chiefs" className="gap-2">
-              <UserCog className="h-4 w-4" /> Chief Invigilators
-              <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-chief-soft text-chief">{chiefs.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="invigilators" className="gap-2">
-              <Users className="h-4 w-4" /> Invigilators
-              <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-invigilator-soft text-invigilator">{invigilators.length}</span>
-            </TabsTrigger>
-          </TabsList>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="inline-flex w-fit rounded-xl border border-border bg-card p-1" role="tablist" aria-label="Role">
+            {ROLE_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={role === tab.value}
+                onClick={() => setRole(tab.value)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  role === tab.value ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <tab.icon className="h-4 w-4" /> {tab.label}
+                <span className={cn("rounded px-1.5 text-[11px] tabular-nums", role === tab.value ? "bg-primary-foreground/20" : "bg-muted")}>{counts[tab.value]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, department or subject" className="h-10 bg-card pl-9" aria-label="Search people" />
+          </div>
+          <div className="flex gap-2">
+            {departments.length > 1 && (
+              <Select value={department} onValueChange={setDepartment}>
+                <SelectTrigger className="h-10 w-44 bg-card" aria-label="Department"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All departments</SelectItem>
+                  {departments.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+              <SelectTrigger className="h-10 w-44 bg-card" aria-label="Sort"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name (A–Z)</SelectItem>
+                <SelectItem value="workload-high">Most duties first</SelectItem>
+                <SelectItem value="workload-low">Fewest duties first</SelectItem>
+                <SelectItem value="department">Department</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <TabsContent value="chiefs">
-          {chiefs.length === 0 ? (
-            <EmptyState
-              title="No chief invigilators"
-              description="Create the first chief invigilator to start assigning rooms."
-              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create chief invigilator</Button>}
+        {visible.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card/60 p-12 text-center">
+            <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="font-medium">{people.length === 0 ? "No people yet" : "Nobody matches"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {people.length === 0 ? "Add chief invigilators and invigilators, or import them from Excel." : "Try another search or filter."}
+            </p>
+            {people.length === 0 && canEdit && <Button className="mt-4 gap-2" onClick={openAdd}><Plus className="h-4 w-4" /> Add person</Button>}
+            {filtered && people.length > 0 && (
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => { setQuery(""); setDepartment("ALL"); setRole("ALL"); }}>Clear filters</Button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="bg-muted/30 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-5 py-2.5 font-medium">Person</th>
+                    <th className="px-3 py-2.5 font-medium">Department</th>
+                    <th className="px-3 py-2.5 font-medium">Available</th>
+                    <th className="px-3 py-2.5 font-medium">Duties this period</th>
+                    <th className="w-12 px-3 py-2.5"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageOf(visible, page, pageSize).map((person) => (
+                    <PersonRow
+                      key={person.id}
+                      person={person}
+                      maxLoad={maxLoad}
+                      averageLoad={averageLoad}
+                      canEdit={canEdit}
+                      onEdit={() => setDialog({ open: true, person, role: person.role })}
+                      onDelete={() => setDeleting(person)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              total={visible.length}
+              noun={visible.length === people.length ? "people" : `people (filtered from ${people.length})`}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
             />
-          ) : (
-            <StaffTable people={chiefs} tone="chief" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="invigilators">
-          {invigilators.length === 0 ? (
-            <EmptyState
-              title="No invigilators"
-              description="Create invigilators to fill room assignments."
-              action={canEdit && <Button onClick={() => setDialogOpen(true)}>Create invigilator</Button>}
-            />
-          ) : (
-            <StaffTable people={invigilators} tone="invigilator" onEdit={(person) => { setEditingPerson(person); setDialogOpen(true); }} onRemove={handleDelete} />
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
       </div>
+
+      <PersonDialog
+        open={dialog.open}
+        person={dialog.person}
+        defaultRole={dialog.role}
+        departments={departments}
+        isSubmitting={createMutation.isPending || updateMutation.isPending}
+        onOpenChange={(open) => setDialog((previous) => ({ ...previous, open }))}
+        onSubmit={handleSubmit}
+      />
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => { if (!open) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting && deleting.totalAssignments > 0
+                ? `${deleting.name} has ${deleting.totalAssignments} duties in this exam period. Deleting removes them from the directory; the server refuses if they are still assigned anywhere.`
+                : "They are removed from the people directory. This cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(event) => { event.preventDefault(); void confirmDelete(); }}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
 
-function StaffTable({
-  people,
-  onEdit,
-  onRemove,
-  tone,
-}: {
-  people: Person[];
-  onEdit: (person: Person) => void;
-  onRemove: (id: string) => Promise<void>;
-  tone: "chief" | "invigilator";
+function PersonRow({ person, maxLoad, averageLoad, canEdit, onEdit, onDelete }: {
+  person: Person;
+  maxLoad: number;
+  averageLoad: number;
+  canEdit: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
-  const { canEdit } = usePermissions();
-  const max = Math.max(1, ...people.map((person) => person.totalAssignments));
-  const averageAssignments = people.reduce((sum, person) => sum + person.totalAssignments, 0) / Math.max(1, people.length);
-
+  const chief = person.role === "CHIEF_INVIGILATOR";
+  const heavy = person.totalAssignments > Math.max(2, Math.ceil(averageLoad * 1.5));
+  const initials = person.name.replace(/^Dr\.\s*/i, "").split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-          <tr className="text-left">
-            <th className="px-5 py-3 font-medium">Name</th>
-            <th className="px-3 py-3 font-medium">Department</th>
-            <th className="px-3 py-3 font-medium">Available days</th>
-            <th className="px-3 py-3 font-medium">Workload</th>
-            <th className="px-3 py-3 font-medium text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {people.map((person) => (
-            <tr key={person.id} className="border-t border-border hover:bg-accent/20 transition-smooth">
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <div className={cn("h-9 w-9 rounded-full grid place-items-center text-xs font-semibold", tone === "chief" ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>
-                    {person.name.replace(/^Dr\.\s*/, "").split(" ").map((segment) => segment[0]).slice(0, 2).join("")}
-                  </div>
-                  <div>
-                    <div className="font-medium">{person.name}</div>
-                    <div className="text-[11px] text-muted-foreground">{person.email || "No email"}</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-3 py-3 text-muted-foreground">{person.department}</td>
-              <td className="px-3 py-3">
-                <DayBadges value={person.availableDays} readOnly size="sm" />
-              </td>
-              <td className="px-3 py-3 w-48">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full", tone === "chief" ? "bg-chief" : "bg-invigilator")}
-                      style={{ width: `${(person.totalAssignments / max) * 100}%` }}
-                    />
-                  </div>
-                  <span className={cn("text-xs font-semibold tabular-nums w-20 text-right", person.totalAssignments > Math.max(2, Math.ceil(averageAssignments * 1.5)) && "text-warning")}>
-                    {person.totalAssignments}x assigned
-                  </span>
-                </div>
-              </td>
-              <td className="px-3 py-3 text-right">
-                <div className={cn("flex justify-end gap-2", !canEdit && "hidden")}>
-                  <Button size="sm" variant="outline" className="gap-2" onClick={() => onEdit(person)}>
-                    <PencilLine className="h-4 w-4" /> Edit
-                  </Button>
-                  <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => void onRemove(person.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function PersonDialog({
-  open,
-  title,
-  initialValue,
-  trigger,
-  onOpenChange,
-  onSubmit,
-  isSubmitting,
-}: {
-  open: boolean;
-  title: string;
-  initialValue: Person | null;
-  trigger: ReactNode;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: PersonRequest) => Promise<void>;
-  isSubmitting: boolean;
-}) {
-  const [formState, setFormState] = useState<PersonRequest>({
-    name: "",
-    department: "",
-    email: "",
-    role: "CHIEF_INVIGILATOR",
-    availableDays: DEFAULT_AVAILABLE_DAYS,
-    gender: null,
-    subjectCodes: [],
-  });
-  const [subjectCodesText, setSubjectCodesText] = useState("");
-
-  useEffect(() => {
-    setSubjectCodesText((initialValue?.subjectCodes ?? []).join(", "));
-    setFormState(
-      initialValue
-        ? {
-            name: initialValue.name,
-            department: initialValue.department,
-            email: initialValue.email ?? "",
-            role: initialValue.role,
-            availableDays: initialValue.availableDays,
-            gender: initialValue.gender ?? null,
-            subjectCodes: initialValue.subjectCodes ?? [],
-          }
-        : {
-            name: "",
-            department: "",
-            email: "",
-            role: "CHIEF_INVIGILATOR",
-            availableDays: DEFAULT_AVAILABLE_DAYS,
-            gender: null,
-            subjectCodes: [],
-          },
-    );
-  }, [initialValue, open]);
-
-  const trimmedEmail = formState.email?.trim() ?? "";
-  const emailValid = trimmedEmail === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setFormState((previous) => ({ ...previous, role: "CHIEF_INVIGILATOR" }))}
-              className={cn("rounded-lg border p-3 text-left transition-smooth", formState.role === "CHIEF_INVIGILATOR" ? "border-chief bg-chief-soft" : "border-border")}
-            >
-              <UserCog className="h-4 w-4 text-chief mb-1" />
-              <div className="text-sm font-semibold">Chief Invigilator</div>
-              <div className="text-[11px] text-muted-foreground">Supervises up to 2 rooms in one slot.</div>
-            </button>
-            <button
-              onClick={() => setFormState((previous) => ({ ...previous, role: "INVIGILATOR" }))}
-              className={cn("rounded-lg border p-3 text-left transition-smooth", formState.role === "INVIGILATOR" ? "border-invigilator bg-invigilator-soft" : "border-border")}
-            >
-              <Users className="h-4 w-4 text-invigilator mb-1" />
-              <div className="text-sm font-semibold">Invigilator</div>
-              <div className="text-[11px] text-muted-foreground">Assigned to 1 room per slot.</div>
-            </button>
-          </div>
-          <div>
-            <Label>Full name</Label>
-            <Input value={formState.name} onChange={(event) => setFormState((previous) => ({ ...previous, name: event.target.value }))} placeholder={formState.role === "CHIEF_INVIGILATOR" ? "Dr. ..." : "Full name"} />
-          </div>
-          <div>
-            <Label>Department</Label>
-            <Input value={formState.department} onChange={(event) => setFormState((previous) => ({ ...previous, department: event.target.value }))} />
-          </div>
-          <div>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={formState.email ?? ""}
-              onChange={(event) => setFormState((previous) => ({ ...previous, email: event.target.value }))}
-              placeholder="Optional — used to send this person's schedule"
-            />
-            {!emailValid && <p className="mt-1 text-xs text-destructive">Enter a valid email, or leave this blank.</p>}
-          </div>
-          <div>
-            <Label className="mb-2 block">Available days</Label>
-            <DayBadges value={formState.availableDays} onChange={(nextDays) => setFormState((previous) => ({ ...previous, availableDays: nextDays as WeekDay[] }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="person-gender">Gender</Label>
-              <select
-                id="person-gender"
-                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={formState.gender ?? ""}
-                onChange={(event) => setFormState((previous) => ({ ...previous, gender: (event.target.value || null) as PersonRequest["gender"] }))}
-              >
-                <option value="">Not set</option>
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-              </select>
-              <p className="mt-1 text-[11px] text-muted-foreground">Needed only for male/female halls.</p>
+    <tr className="border-t border-border hover:bg-accent/20">
+      <td className="px-5 py-3">
+        <div className="flex items-center gap-3">
+          <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold", chief ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{initials}</div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {canEdit
+                ? <button type="button" onClick={onEdit} className="truncate font-medium hover:text-primary hover:underline">{person.name}</button>
+                : <span className="truncate font-medium">{person.name}</span>}
+              <span className={cn("rounded px-1.5 text-[10px] font-medium", chief ? "bg-chief-soft text-chief" : "bg-invigilator-soft text-invigilator")}>{chief ? "Chief" : "Invigilator"}</span>
+              {person.gender && <span className="rounded bg-muted px-1.5 text-[10px] text-muted-foreground">{person.gender === "FEMALE" ? "Female" : "Male"}</span>}
             </div>
-            <div>
-              <Label htmlFor="person-subjects">Subjects taught</Label>
-              <Input id="person-subjects" value={subjectCodesText} onChange={(event) => setSubjectCodesText(event.target.value)} placeholder="e.g. MATH101, CS301" />
-              <p className="mt-1 text-[11px] text-muted-foreground">Won't invigilate these exams.</p>
+            <div className="truncate text-xs text-muted-foreground">
+              {person.email || <span className="italic text-muted-foreground/70">No email</span>}
+              {(person.subjectCodes?.length ?? 0) > 0 && <span> · teaches {person.subjectCodes!.join(", ")}</span>}
             </div>
           </div>
-          {initialValue && <UnavailabilityPanel personId={initialValue.id} />}
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            disabled={isSubmitting || !formState.name.trim() || !formState.department.trim() || !emailValid}
-            onClick={() => void onSubmit({
-              ...formState,
-              name: formState.name.trim(),
-              department: formState.department.trim(),
-              email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
-              subjectCodes: subjectCodesText.split(",").map((code) => code.trim().toUpperCase()).filter(Boolean),
-            })}
-          >
-            {isSubmitting ? "Saving..." : `Save ${roleLabel(formState.role as PersonRole)}`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </td>
+      <td className="px-3 py-3 text-muted-foreground">{person.department}</td>
+      <td className="px-3 py-3">
+        <div className="flex gap-0.5" aria-label={`Available: ${person.availableDays.join(", ") || "no days"}`}>
+          {DAYS.map((day) => {
+            const on = person.availableDays.includes(day);
+            return (
+              <span key={day} title={day} className={cn("grid h-6 w-6 place-items-center rounded text-[10px] font-medium", on ? "bg-primary/10 text-primary" : "text-muted-foreground/40")}>
+                {day.slice(0, 2)}
+              </span>
+            );
+          })}
+        </div>
+        {person.availableDays.length === 0 && <div className="mt-0.5 flex items-center gap-1 text-[11px] text-warning"><CalendarOff className="h-3 w-3" /> Never available</div>}
+      </td>
+      <td className="w-56 px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className={cn("h-full rounded-full", heavy ? "bg-warning" : chief ? "bg-chief" : "bg-invigilator")} style={{ width: `${(person.totalAssignments / maxLoad) * 100}%` }} />
+          </div>
+          <span className={cn("w-16 text-right text-xs font-semibold tabular-nums", heavy && "text-warning")} title={heavy ? "Well above the average workload" : undefined}>
+            {person.totalAssignments} {person.totalAssignments === 1 ? "duty" : "duties"}
+          </span>
+        </div>
+      </td>
+      <td className="px-3 py-3 text-right">
+        {canEdit && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${person.name}`}><MoreHorizontal className="h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}><PencilLine className="mr-2 h-4 w-4" /> Edit, leave dates</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </td>
+    </tr>
   );
 }

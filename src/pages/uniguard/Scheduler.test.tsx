@@ -56,6 +56,18 @@ describe("scheduler pickers", () => {
     ]);
   });
 
+  it("opens the date and slot from a Timeline link, even when the slots load a moment later", () => {
+    const loaded = store.slots;
+    store.slots = []; // still loading
+    const { rerender } = render(<MemoryRouter initialEntries={["/scheduler?date=2026-11-17&slot=pm"]}><Scheduler /></MemoryRouter>);
+    store.slots = loaded;
+    rerender(<MemoryRouter initialEntries={["/scheduler?date=2026-11-17&slot=pm"]}><Scheduler /></MemoryRouter>);
+
+    expect(screen.getByText("grid for pm")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Afternoon/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: /Tue 17 Nov 2026/ })).toBeInTheDocument();
+  });
+
   it("searches long room lists and selects only the matches", () => {
     store.rooms = Array.from({ length: 45 }, (_, index) => room(index + 1));
     render(<MemoryRouter><Scheduler /></MemoryRouter>);
