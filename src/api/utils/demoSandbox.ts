@@ -1206,7 +1206,17 @@ function handleAssignmentsBulkSave(data: unknown) {
   return createSuccessResponse(savedAssignments);
 }
 
-function handleAssignmentsMutation(path: string, method: DemoMethod, data: unknown) {
+function handleAssignmentsMutation(path: string, method: DemoMethod, data: unknown, params?: unknown) {
+  if (path === "/api/assignments" && method === "DELETE") {
+    // Clear one exam period (the real server does this in one transaction).
+    const groupId = (params as { scheduleGroupId?: UUID } | undefined)?.scheduleGroupId;
+    const store = getAssignmentsStore();
+    const doomed = [...store.records.values()].filter((assignment) => !groupId || assignment.scheduleGroupId === groupId);
+    doomed.forEach((assignment) => deleteCollectionRecord(store, assignment.id));
+    recalculatePersonAssignmentTotals();
+    return createSuccessResponse({ deleted: doomed.length, examPeriod: "" });
+  }
+
   if (path === "/api/assignments" && method === "POST") {
     const nextAssignment = createAssignmentRecord(data as AssignmentRequest);
     return createSuccessResponse(upsertAssignment(nextAssignment, "create"));
@@ -1412,7 +1422,7 @@ export async function resolveDemoSandboxRequest<TResult>(config: DemoCacheableRe
     handlePeopleMutation(path, method, config.data)
     || handleRoomsMutation(path, method, config.data)
     || handleTimeSlotsMutation(path, method, config.data)
-    || handleAssignmentsMutation(path, method, config.data)
+    || handleAssignmentsMutation(path, method, config.data, config.params)
     || handleSettingsMutation(path, method, config.data)
   ) as ReturnType<typeof createSuccessResponse<TResult>> | null;
 }
