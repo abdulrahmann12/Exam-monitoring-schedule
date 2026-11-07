@@ -72,7 +72,7 @@ describe("reports", () => {
     expect(screen.getByText("Mona Adel")).toBeInTheDocument();
   });
 
-  it("lists hours for finance, busiest first, hiding people without duties", () => {
+  it("lists hours for finance, busiest first; people without duties on their own tab", () => {
     renderPage();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Hours per person" }));
     fireEvent.click(screen.getByRole("tab", { name: "Hours per person" }));
@@ -81,7 +81,11 @@ describe("reports", () => {
     expect(names).toEqual(["Dr. Omar Nabil", "Sara Hassan", "Karim Fathy"]);
     expect(within(table).getByText("Total (3 people)")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("switch", { name: "Hide people without duties" }));
+    fireEvent.click(screen.getByRole("tab", { name: /Without duties/ }));
+    expect(within(screen.getByRole("table")).getByText("Total (2 people)")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).queryByText("Dr. Omar Nabil")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Everyone 5/ }));
     expect(within(screen.getByRole("table")).getByText("Total (5 people)")).toBeInTheDocument();
   });
 });
