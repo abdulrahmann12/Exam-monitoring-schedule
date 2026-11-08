@@ -78,7 +78,6 @@ export function requiredInvigilators(room: Pick<Room, "minInvigilators">, studen
 
 export const minInvigilatorsForCapacity = (capacity: number) => (capacity >= 40 ? 2 : 1);
 export const roleLabel = (role: Role) => role === "CHIEF_INVIGILATOR" ? "Chief Invigilator" : "Invigilator";
-export const roleLabelAr = (role: Role) => role === "CHIEF_INVIGILATOR" ? "رئيس لجنة" : "مراقب";
 
 export const isLargeRoom = (capacity: number) => capacity >= 40;
 export const requiredTAs = minInvigilatorsForCapacity;

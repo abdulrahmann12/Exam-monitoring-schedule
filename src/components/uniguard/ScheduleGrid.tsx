@@ -4,7 +4,7 @@ import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateC
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { overlappingAssignmentsForSlot } from "@/lib/uniguard/constraintEngine";
-import { AssignmentState, dayOfDate, requiredInvigilators, roleLabelAr, type Staff } from "@/lib/uniguard/types";
+import { AssignmentState, dayOfDate, requiredInvigilators, type Staff } from "@/lib/uniguard/types";
 import { StaffPicker } from "./StaffPicker";
 import { StaffProfileDialog } from "./StaffProfileDialog";
 import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
@@ -139,7 +139,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
 
                   <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(220px,280px)_1fr] gap-4">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Chief Invigilator <span className="font-normal">({roleLabelAr("CHIEF_INVIGILATOR")})</span></div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Chief Invigilator</div>
                       <StaffCell
                         person={chief ?? null}
                         tone="chief"
@@ -153,7 +153,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
 
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Invigilators <span className="font-normal">({roleLabelAr("INVIGILATOR")})</span></div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Invigilators</div>
                         <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => { addInvigilatorSlot(date, slotId, assignment.roomId); toast.success("Invigilator slot added"); }}>
                           <Plus className="h-3 w-3" /> Add Invigilator
                         </Button>

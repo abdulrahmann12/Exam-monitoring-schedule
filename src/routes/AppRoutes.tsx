@@ -17,6 +17,8 @@ import Activity from "@/pages/uniguard/Activity";
 import Users from "@/pages/uniguard/Users";
 import Emails from "@/pages/uniguard/Emails";
 import Reports from "@/pages/uniguard/Reports";
+import UserGuide from "@/pages/uniguard/UserGuide";
+import UserGuideRead from "@/pages/uniguard/UserGuideRead";
 import OwnerAccount from "@/pages/owner/OwnerAccount";
 import OwnerActivity from "@/pages/owner/OwnerActivity";
 import OwnerLayout from "@/pages/owner/OwnerLayout";
@@ -65,6 +67,8 @@ export function AppRoutes() {
         <Route path="/assignments" element={<Assignments />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/user-guide" element={<UserGuide />} />
+        <Route path="/user-guide/read" element={<UserGuideRead />} />
         <Route element={<RequirePermission permission="canViewEmails" />}>
           <Route path="/emails" element={<Emails />} />
         </Route>
