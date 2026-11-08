@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Mail, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Mail, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -19,6 +19,7 @@ const items = [
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Emails", url: "/emails", icon: Mail, needsEmails: true },
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "User Guide", url: "/user-guide", icon: BookOpen },
 ];
 
 const adminItems = [
@@ -60,7 +61,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleItems.map((item) => {
-                const active = location.pathname === item.url;
+                const active = location.pathname === item.url || location.pathname.startsWith(`${item.url}/`);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild tooltip={item.title}>

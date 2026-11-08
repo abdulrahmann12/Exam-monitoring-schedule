@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { AddUniversityAdminRequest, CreateUniversityRequest, UpdateUniversityRequest, UUID } from "@/api";
+import type { AddUniversityAdminRequest, CreateUniversityRequest, DeleteUniversityRequest, UpdateUniversityRequest, UUID } from "@/api";
 import { ownerService } from "@/api";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
 
@@ -38,6 +38,11 @@ export function useCreateUniversityMutation() {
 export function useUpdateUniversityMutation() {
   return useOwnerMutation(async ({ id, payload }: { id: UUID; payload: UpdateUniversityRequest }) =>
     unwrapServiceResponse(await ownerService.updateUniversity(id, payload)));
+}
+
+export function useDeleteUniversityMutation() {
+  return useOwnerMutation(async ({ id, payload }: { id: UUID; payload: DeleteUniversityRequest }) =>
+    unwrapServiceResponse(await ownerService.deleteUniversity(id, payload)));
 }
 
 export function useAddUniversityAdminMutation() {

@@ -12,7 +12,6 @@ import { pageOf, TablePagination } from "@/components/app/TablePagination";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppLayout } from "@/components/uniguard/AppLayout";
 import { useAssignmentsQuery } from "@/hooks";
@@ -346,20 +345,22 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
   const query = useWorkloadReportQuery(scheduleGroupId);
   const [filter, setFilter] = useState("");
   const [role, setRole] = useState<RoleFilter>("ALL");
-  const [hideIdle, setHideIdle] = useState(true);
+  // Who to list. People without duties have 0 hours, so with "Everyone" they sit at the very end of the
+  // last page; "Without duties" shows exactly them.
+  const [duty, setDuty] = useState<"WITH" | "WITHOUT" | "ALL">("WITH");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
   const rows = useMemo(() => {
     const term = filter.trim().toLowerCase();
     return (query.data?.people ?? [])
-      .filter((row) => !hideIdle || row.sessions > 0)
+      .filter((row) => duty === "ALL" || (duty === "WITH" ? row.sessions > 0 : row.sessions === 0))
       .filter((row) => role === "ALL" || row.role === role)
       .filter((row) => !term || `${row.name} ${row.department ?? ""}`.toLowerCase().includes(term))
       .sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name));
-  }, [query.data, filter, role, hideIdle]);
+  }, [query.data, filter, role, duty]);
 
-  useEffect(() => setPage(0), [filter, role, hideIdle]);
+  useEffect(() => setPage(0), [filter, role, duty]);
 
   if (query.isLoading) return <LoadingState title="Calculating hours..." />;
   if (query.isError || !query.data) return <ErrorState description={getErrorMessage(query.error)} onRetry={() => void query.refetch()} />;
@@ -388,14 +389,21 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
             </button>
           ))}
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm sm:ml-auto">
-          <Switch checked={hideIdle} onCheckedChange={setHideIdle} aria-label="Hide people without duties" />
-          Hide people without duties {idleCount > 0 && <span className="text-muted-foreground">({idleCount})</span>}
-        </label>
+        <div className="inline-flex w-fit rounded-lg bg-muted/60 p-1 sm:ml-auto" role="tablist" aria-label="Duties">
+          {([["WITH", "With duties", report.people.length - idleCount], ["WITHOUT", "Without duties", idleCount], ["ALL", "Everyone", report.people.length]] as const).map(([value, label, count]) => (
+            <button key={value} type="button" role="tab" aria-selected={duty === value} onClick={() => setDuty(value)}
+              className={cn("inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium", duty === value ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              {label} <span className={cn("tabular-nums", value === "WITHOUT" && count > 0 ? "text-warning" : "text-muted-foreground")}>{count}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title="Nobody to show" description={hideIdle ? "Nobody has duties yet, or the filter hides them." : "Try another filter."} />
+        <EmptyState
+          title="Nobody to show"
+          description={duty === "WITHOUT" ? "Everyone has at least one duty in this exam period." : duty === "WITH" ? "Nobody has duties yet, or the filter hides them." : "Try another filter."}
+        />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
           <div className="overflow-x-auto">

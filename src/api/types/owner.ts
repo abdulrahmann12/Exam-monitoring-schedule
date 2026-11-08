@@ -52,6 +52,25 @@ export interface UpdateUniversityRequest {
   active: boolean;
 }
 
+/** Permanently delete a switched-off university: its exact name and the owner's password. */
+export interface DeleteUniversityRequest {
+  confirmName: string;
+  password: string;
+}
+
+/** What a deletion removed (counts only). */
+export interface DeletedUniversity {
+  name: string;
+  accounts: number;
+  people: number;
+  rooms: number;
+  examRooms: number;
+  emails: number;
+}
+
+/** The first university is re-created by the server on every start, so it can never be deleted. */
+export const DEFAULT_UNIVERSITY_ID = "00000000-0000-0000-0000-000000000001";
+
 export interface AddUniversityAdminRequest {
   email: string;
   displayName?: string;
