@@ -134,7 +134,7 @@ export default function Scheduler() {
         return valid;
       }
 
-      return rooms.slice(0, 5).map((room) => room.id);
+      return rooms.filter((room) => room.active !== false).slice(0, 5).map((room) => room.id);
     });
   }, [activeSlotId, dateStr, entrySelection, rooms]);
 
@@ -187,7 +187,9 @@ export default function Scheduler() {
     };
   };
   const roomNeedle = roomSearch.trim().toLowerCase();
-  const visibleRooms = roomNeedle ? rooms.filter((room) => room.name.toLowerCase().includes(roomNeedle)) : rooms;
+  // Out-of-service rooms are not offered, but stay visible where this exam already uses them.
+  const offeredRooms = rooms.filter((room) => room.active !== false || selectedRooms.includes(room.id));
+  const visibleRooms = roomNeedle ? offeredRooms.filter((room) => room.name.toLowerCase().includes(roomNeedle)) : offeredRooms;
 
   const jumpTo = (target: { date: string; slotId: string }) => {
     setDate(parseISO(target.date));

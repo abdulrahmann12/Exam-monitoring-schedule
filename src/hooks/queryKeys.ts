@@ -32,6 +32,9 @@ export const queryKeys = {
     all: ["people"] as const,
     list: (params?: unknown) => ["people", "list", params ?? null] as const,
   },
+  roomCategories: {
+    all: ["room-categories"] as const,
+  },
   rooms: {
     all: ["rooms"] as const,
     list: (params?: unknown) => ["rooms", "list", params ?? null] as const,

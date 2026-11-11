@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, ListOrdered, Mail, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarRange, Clock3, DoorOpen, History, LayoutDashboard, LayoutGrid, ListOrdered, Mail, Settings, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -11,6 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Scheduler", url: "/scheduler", icon: Sparkles, needsEdit: true },
+  { title: "Room Allocation", url: "/room-allocation", icon: LayoutGrid, needsEdit: true },
   { title: "Timeline", url: "/timeline", icon: CalendarRange },
   { title: "People", url: "/people", icon: Users },
   { title: "Rooms", url: "/rooms", icon: DoorOpen },

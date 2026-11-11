@@ -735,7 +735,10 @@ function createRoomRecord(payload: RoomRequest, options?: { createdAt?: string; 
     capacity: toPositiveInteger(payload.capacity, 40),
     type: payload.type,
     minInvigilators: toPositiveInteger(payload.minInvigilators, getMinInvigilatorsForCapacity(payload.capacity)),
-    active: true,
+    active: payload.active !== false,
+    roomCategoryId: payload.roomCategoryId ?? null,
+    roomCategoryName: null,
+    roomCategorySpecial: false,
     createdAt: timestamp,
     updatedAt: createIsoTimestamp(),
   };

@@ -10,6 +10,7 @@ import People from "@/pages/uniguard/People";
 import Rooms from "@/pages/uniguard/Rooms";
 import Assignments from "@/pages/uniguard/Assignments";
 import Scheduler from "@/pages/uniguard/Scheduler";
+import RoomAllocation from "@/pages/uniguard/RoomAllocation";
 import Settings from "@/pages/uniguard/Settings";
 import TimeSlots from "@/pages/uniguard/TimeSlots";
 import Timeline from "@/pages/uniguard/Timeline";
@@ -61,6 +62,7 @@ export function AppRoutes() {
         <Route path="/rooms" element={<Rooms />} />
         <Route element={<RequirePermission permission="canEdit" />}>
           <Route path="/scheduler" element={schedulerElement} />
+          <Route path="/room-allocation" element={<RoomAllocation />} />
         </Route>
         <Route path="/timeline" element={timelineElement} />
         <Route path="/time-slots" element={<TimeSlots />} />

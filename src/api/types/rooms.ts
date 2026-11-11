@@ -21,6 +21,10 @@ export interface RoomRequest {
   type: RoomType;
   minInvigilators: number;
   hallGender?: HallGender;
+  /** Room type. Left out: guessed from the name (new room: "Lab 2" → Lab, else Classroom) or unchanged (edit). */
+  roomCategoryId?: UUID;
+  /** false = out of service. Left out: in service (new room) or unchanged (edit). */
+  active?: boolean;
 }
 
 export interface Room {
@@ -30,7 +34,28 @@ export interface Room {
   type: RoomType;
   minInvigilators: number;
   hallGender?: HallGender;
+  /** false = out of service: never offered for new exams. */
   active: boolean;
+  /** Room type; null = none (a normal room). */
+  roomCategoryId: UUID | null;
+  roomCategoryName: string | null;
+  /** Special type (lab, studio): only for exams that ask for exactly this type. */
+  roomCategorySpecial: boolean;
   createdAt: ISOInstant;
   updatedAt: ISOInstant;
+}
+/** A room type of the university ("Classroom", "Computer Lab", ...). */
+export interface RoomCategory {
+  id: UUID;
+  name: string;
+  /** true = only for exams that ask for exactly this type; normal exams never get these rooms. */
+  special: boolean;
+  sortOrder: number;
+  /** How many rooms have this type. */
+  rooms: number;
+}
+
+export interface RoomCategoryRequest {
+  name: string;
+  special: boolean;
 }

@@ -23,6 +23,8 @@ export interface Room {
   capacity: number;
   minInvigilators: number;
   hallGender?: "MIXED" | "MALE" | "FEMALE";
+  /** false = out of service: hidden from the room picker unless an exam already uses it. */
+  active?: boolean;
 }
 
 export interface Slot {
