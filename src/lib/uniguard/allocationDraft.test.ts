@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RoomAllocationPreview } from "@/api";
 
-import { base64ToFile, clearDraft, fileToBase64, loadDraft, planChanges, saveDraft } from "./allocationDraft";
+import { base64ToFile, clearAllDrafts, clearDraft, fileToBase64, loadDraft, planChanges, saveDraft } from "./allocationDraft";
 
 const plan = (time: string, rooms: string[], unplaced = 0): RoomAllocationPreview => ({
   exams: 1, examsFullySeated: unplaced ? 0 : 1, students: 100, studentsUnplaced: unplaced, roomsUsed: rooms.length, seats: 100, emptySeats: 0,
@@ -22,6 +22,18 @@ describe("room allocation draft", () => {
       .toEqual(["Row 2 MATH101: time 2027-01-10 09:00–11:00 → 2027-01-10 12:00–14:00"]);
     expect(planChanges(plan("09:00–11:00", ["A", "B"]), plan("09:00–11:00", ["A", "B"], 20)))
       .toEqual(["Row 2 MATH101: students without a seat 0 → 20"]);
+  });
+
+  it("forgets every draft when the user signs out, and nothing else", () => {
+    const draft = { fileName: "exams.csv", fileType: "text/csv", fileBase64: "", dateOrder: "AUTO", preview: plan("09:00–11:00", ["A"]), saved: null, staffed: null } as const;
+    saveDraft("g1", draft);
+    saveDraft("g2", draft);
+    window.localStorage.setItem("uniguard.theme", "dark");
+    clearAllDrafts();
+    expect(loadDraft("g1")).toBeNull();
+    expect(loadDraft("g2")).toBeNull();
+    expect(window.localStorage.getItem("uniguard.theme")).toBe("dark");
+    window.localStorage.removeItem("uniguard.theme");
   });
 
   it("keeps the file and the proposal per exam period", async () => {

@@ -20,7 +20,8 @@ export interface AllocationDraft {
 /** Larger files are not kept (browser storage is small). */
 export const MAX_DRAFT_FILE_BYTES = 2 * 1024 * 1024;
 
-const key = (groupId: string) => `uniguard.roomAllocation.v1.${groupId}`;
+const KEY_PREFIX = "uniguard.roomAllocation.";
+const key = (groupId: string) => `${KEY_PREFIX}v1.${groupId}`;
 
 export function loadDraft(groupId: string): AllocationDraft | null {
   try {
@@ -38,6 +39,23 @@ export function saveDraft(groupId: string, draft: AllocationDraft) {
     window.localStorage.setItem(key(groupId), JSON.stringify(draft));
   } catch {
     // storage full or blocked: nothing to do
+  }
+}
+
+/**
+ * Removes every unsaved Room Allocation draft from this browser. Called when the user signs out (or the session
+ * ends), so on a shared computer the next person never sees the previous person's exam list.
+ */
+export function clearAllDrafts() {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const name = window.localStorage.key(i);
+      if (name?.startsWith(KEY_PREFIX)) keys.push(name);
+    }
+    keys.forEach((name) => window.localStorage.removeItem(name));
+  } catch {
+    // Storage blocked: nothing was kept either.
   }
 }
 
