@@ -9,9 +9,9 @@ const create = vi.fn().mockResolvedValue(undefined);
 const mutation = (mutateAsync = vi.fn()) => ({ mutateAsync, isPending: false });
 
 const rooms = [
-  ...Array.from({ length: 30 }, (_, index) => ({ id: `r${index + 1}`, name: `Room ${index + 1}`, capacity: 30 + index, type: "MEDIUM", minInvigilators: 1, hallGender: "MIXED", active: true, roomCategoryId: "t-class", roomCategoryName: "Classroom", roomCategorySpecial: false })),
-  { id: "hd", name: "Hall D", capacity: 120, type: "LARGE", minInvigilators: 3, hallGender: "FEMALE", active: false, roomCategoryId: "t-class", roomCategoryName: "Classroom", roomCategorySpecial: false },
-  { id: "lab", name: "Computer Lab 1", capacity: 20, type: "SMALL", minInvigilators: 1, hallGender: "MIXED", active: true, roomCategoryId: "t-pc", roomCategoryName: "Computer Lab", roomCategorySpecial: true },
+  ...Array.from({ length: 30 }, (_, index) => ({ id: `r${index + 1}`, name: `Room ${index + 1}`, capacity: 30 + index, type: "MEDIUM", minInvigilators: 1, hallGender: "MIXED", active: true, roomCategoryId: "t-class", roomCategoryName: "Classroom", roomCategorySpecial: false, building: index < 15 ? "A" : "B" })),
+  { id: "hd", name: "Hall D", capacity: 120, type: "LARGE", minInvigilators: 3, hallGender: "FEMALE", active: false, roomCategoryId: "t-class", roomCategoryName: "Classroom", roomCategorySpecial: false, building: null },
+  { id: "lab", name: "Computer Lab 1", capacity: 20, type: "SMALL", minInvigilators: 1, hallGender: "MIXED", active: true, roomCategoryId: "t-pc", roomCategoryName: "Computer Lab", roomCategorySpecial: true, building: "C" },
 ];
 
 vi.mock("@/hooks", () => ({
@@ -119,5 +119,28 @@ describe("rooms page", () => {
     expect(within(dialog).getByText(/Only given to exams that ask for “Computer Lab”/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Save room" }));
     await waitFor(() => expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ id: "lab", payload: expect.objectContaining({ roomCategoryId: "t-pc" }) })));
+  });
+
+  it("filters by building and keeps the building when a room is edited", async () => {
+    render(<Rooms />);
+    fireEvent.change(screen.getByLabelText("Search rooms"), { target: { value: "computer" } });
+    expect(screen.getByRole("cell", { name: "C" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Computer Lab 1" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Building")).toHaveValue("C");
+    fireEvent.change(within(dialog).getByLabelText("Building"), { target: { value: "D" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save room" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ id: "lab", payload: expect.objectContaining({ building: "D" }) })));
+  });
+
+  it("shows the building guessed from a new room's name", async () => {
+    render(<Rooms />);
+    fireEvent.click(screen.getByRole("button", { name: /Add room/ }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByPlaceholderText("Hall A"), { target: { value: "H101" } });
+    expect(within(dialog).getByLabelText("Building")).toHaveAttribute("placeholder", "H");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save room" }));
+    await waitFor(() => expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ name: "H101" })));
+    expect(create.mock.calls.at(-1)?.[0].building).toBeUndefined(); // the server takes it from the name
   });
 });

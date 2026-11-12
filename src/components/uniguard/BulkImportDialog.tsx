@@ -30,7 +30,7 @@ const TEXT = {
     title: "Import rooms from Excel",
     noun: ["room", "rooms"],
     secondary: "Capacity",
-    columns: ["Name", "Capacity", "Size", "Min invigilators", "Hall gender", "Room type"],
+    columns: ["Name", "Capacity", "Size", "Min invigilators", "Hall gender", "Room type", "Building"],
   },
 } as const;
 

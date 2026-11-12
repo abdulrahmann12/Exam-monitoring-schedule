@@ -142,8 +142,16 @@ export function validateAssignment(
   return { state: hasConflict ? "CONFLICT" : roomIssues.length > 0 ? "INCOMPLETE" : "VALID", issues: roomIssues, tracker: slotValidation.tracker };
 }
 
-export function getPickerTiers(opts: { role: Role; day: Day; staff: Staff[]; assignments: Assignment[]; currentId?: string | null; room?: Room; subjectCode?: string | null }) {
-  const { role, day, staff, assignments, currentId, room, subjectCode } = opts;
+/** Why someone is not free outside this exam period (from the server): another period at an overlapping time, or leave. */
+export interface ElsewhereBusy {
+  invigilator: boolean;
+  chiefRooms: number;
+  onLeave: boolean;
+  reason: string;
+}
+
+export function getPickerTiers(opts: { role: Role; day: Day; staff: Staff[]; assignments: Assignment[]; currentId?: string | null; room?: Room; subjectCode?: string | null; elsewhere?: Map<string, ElsewhereBusy> }) {
+  const { role, day, staff, assignments, currentId, room, subjectCode, elsewhere } = opts;
   const chiefCounts = new Map<string, number>();
   const busyInvigilators = new Set<string>();
   assignments.forEach((assignment) => {
@@ -161,13 +169,22 @@ export function getPickerTiers(opts: { role: Role; day: Day; staff: Staff[]; ass
       unavailable.push({ staff: person, reason: "Off day" });
       continue;
     }
+    const outside = elsewhere?.get(person.id);
+    if (outside?.onLeave) {
+      unavailable.push({ staff: person, reason: "On leave" });
+      continue;
+    }
+    if (role === "INVIGILATOR" && outside?.invigilator) {
+      unavailable.push({ staff: person, reason: outside.reason });
+      continue;
+    }
     const restriction = roomRestriction(person, room, subjectCode);
     if (restriction) {
       unavailable.push({ staff: person, reason: restriction.type === "gender" ? "Hall gender" : "Teaches this subject" });
       continue;
     }
     if (role === "CHIEF_INVIGILATOR") {
-      const count = chiefCounts.get(person.id) ?? 0;
+      const count = (chiefCounts.get(person.id) ?? 0) + (outside?.chiefRooms ?? 0); // rooms in other exam periods count too
       const limit = parallelLimit(person);
       if (count === 0) free.push(person);
       else if (count < limit) partiallyBusy.push(person);

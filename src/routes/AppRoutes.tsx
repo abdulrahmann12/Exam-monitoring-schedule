@@ -1,30 +1,7 @@
+import { Suspense, lazy, useEffect, type ComponentType } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import NotFound from "@/pages/NotFound";
-import Index from "@/pages/Index";
-import ForgotPassword from "@/pages/auth/ForgotPassword";
 import Login from "@/pages/auth/Login";
-import ConfirmEmail from "@/pages/auth/ConfirmEmail";
-import ResetPassword from "@/pages/auth/ResetPassword";
-import People from "@/pages/uniguard/People";
-import Rooms from "@/pages/uniguard/Rooms";
-import Assignments from "@/pages/uniguard/Assignments";
-import Scheduler from "@/pages/uniguard/Scheduler";
-import RoomAllocation from "@/pages/uniguard/RoomAllocation";
-import Settings from "@/pages/uniguard/Settings";
-import TimeSlots from "@/pages/uniguard/TimeSlots";
-import Timeline from "@/pages/uniguard/Timeline";
-import Activity from "@/pages/uniguard/Activity";
-import Users from "@/pages/uniguard/Users";
-import Emails from "@/pages/uniguard/Emails";
-import Reports from "@/pages/uniguard/Reports";
-import UserGuide from "@/pages/uniguard/UserGuide";
-import UserGuideRead from "@/pages/uniguard/UserGuideRead";
-import OwnerAccount from "@/pages/owner/OwnerAccount";
-import OwnerActivity from "@/pages/owner/OwnerActivity";
-import OwnerLayout from "@/pages/owner/OwnerLayout";
-import OwnerOverview from "@/pages/owner/OwnerOverview";
-import OwnerUniversities from "@/pages/owner/OwnerUniversities";
 import { UniGuardProvider } from "@/lib/uniguard/store";
 
 import { OwnerRoute } from "./OwnerRoute";
@@ -32,7 +9,62 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { RequirePermission } from "./RequirePermission";
 
+/**
+ * Pages are loaded when first opened (one small file each) instead of all in one big download.
+ * After the first screen is shown, the browser fetches the others in the background while idle,
+ * so moving around stays instant.
+ */
+const preloads: Array<() => Promise<unknown>> = [];
+function page<T extends ComponentType<object>>(load: () => Promise<{ default: T }>) {
+  preloads.push(load);
+  return lazy(load);
+}
+
+const NotFound = page(() => import("@/pages/NotFound"));
+const Index = page(() => import("@/pages/Index"));
+const ForgotPassword = page(() => import("@/pages/auth/ForgotPassword"));
+const ConfirmEmail = page(() => import("@/pages/auth/ConfirmEmail"));
+const ResetPassword = page(() => import("@/pages/auth/ResetPassword"));
+const People = page(() => import("@/pages/uniguard/People"));
+const Rooms = page(() => import("@/pages/uniguard/Rooms"));
+const Assignments = page(() => import("@/pages/uniguard/Assignments"));
+const Scheduler = page(() => import("@/pages/uniguard/Scheduler"));
+const RoomAllocation = page(() => import("@/pages/uniguard/RoomAllocation"));
+const Settings = page(() => import("@/pages/uniguard/Settings"));
+const TimeSlots = page(() => import("@/pages/uniguard/TimeSlots"));
+const Timeline = page(() => import("@/pages/uniguard/Timeline"));
+const Activity = page(() => import("@/pages/uniguard/Activity"));
+const Users = page(() => import("@/pages/uniguard/Users"));
+const Emails = page(() => import("@/pages/uniguard/Emails"));
+const Reports = page(() => import("@/pages/uniguard/Reports"));
+const UserGuide = page(() => import("@/pages/uniguard/UserGuide"));
+const UserGuideRead = page(() => import("@/pages/uniguard/UserGuideRead"));
+const OwnerAccount = page(() => import("@/pages/owner/OwnerAccount"));
+const OwnerActivity = page(() => import("@/pages/owner/OwnerActivity"));
+const OwnerLayout = page(() => import("@/pages/owner/OwnerLayout"));
+const OwnerOverview = page(() => import("@/pages/owner/OwnerOverview"));
+const OwnerUniversities = page(() => import("@/pages/owner/OwnerUniversities"));
+
+function preloadPages() {
+  const run = () => preloads.forEach((load) => { void load().catch(() => undefined); });
+  const idle = (window as Window & { requestIdleCallback?: (callback: () => void) => number }).requestIdleCallback;
+  if (idle) idle(run); else window.setTimeout(run, 1500);
+}
+
+function PageLoading() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-background" role="status" aria-label="Loading page">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+    </div>
+  );
+}
+
 export function AppRoutes() {
+  useEffect(() => {
+    const timer = window.setTimeout(preloadPages, 2000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const schedulerElement = (
     <UniGuardProvider>
       <Scheduler />
@@ -46,6 +78,7 @@ export function AppRoutes() {
   );
 
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
@@ -92,5 +125,6 @@ export function AppRoutes() {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }

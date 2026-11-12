@@ -71,10 +71,10 @@ export async function fetchAllPaginatedItems<TItem, TParams extends PaginatedQue
       } as TParams)),
   );
 
-  const items = [
+  const items = withoutRepeats([
     ...firstPage.items,
     ...remainingPages.flatMap((page) => page.items),
-  ];
+  ]);
 
   return {
     ...firstPage,
@@ -84,4 +84,19 @@ export async function fetchAllPaginatedItems<TItem, TParams extends PaginatedQue
     totalItems: Math.max(firstPage.totalItems, items.length),
     totalPages,
   };
+}
+
+/**
+ * Keeps the first copy of each item with an id. Pages are loaded one by one; if rows change order between two
+ * requests, one row could arrive twice (and be saved twice). Items without an id are kept as they are.
+ */
+export function withoutRepeats<TItem>(items: TItem[]): TItem[] {
+  const seen = new Set<unknown>();
+  return items.filter((item) => {
+    const id = (item as { id?: unknown } | null)?.id;
+    if (id === undefined || id === null) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }

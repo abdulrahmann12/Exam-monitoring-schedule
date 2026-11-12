@@ -1,4 +1,4 @@
-import type { BulkTemplateDownload, ImportDateOrder, RoomAllocationPreview, RoomAllocationSaved, RoomAllocationStaffed, ServiceResponse, UUID } from "../types";
+import type { BulkTemplateDownload, ImportDateOrder, RoomAllocationAdjustments, RoomAllocationBatch, RoomAllocationPreview, RoomAllocationSaved, RoomAllocationStaffed, RoomAllocationUndone, ServiceResponse, UUID } from "../types";
 import { performRequest } from "../utils/request";
 
 const ROOM_ALLOCATION_ENDPOINT = "/api/room-allocation";
@@ -12,12 +12,16 @@ async function previewRoomAllocation(
   scheduleGroupId: UUID,
   file: File,
   dateOrder: ImportDateOrder = "AUTO",
+  adjustments?: RoomAllocationAdjustments,
 ): Promise<ServiceResponse<RoomAllocationPreview>> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("scheduleGroupId", scheduleGroupId);
   if (dateOrder !== "AUTO") {
     formData.append("dateOrder", dateOrder);
+  }
+  if (adjustments && [adjustments.times, adjustments.rooms, adjustments.dates ?? {}, adjustments.anchors ?? {}].some((part) => Object.keys(part).length > 0)) {
+    formData.append("adjustments", JSON.stringify(adjustments));
   }
 
   return performRequest<RoomAllocationPreview>({
@@ -51,12 +55,16 @@ async function saveRoomAllocation(
   scheduleGroupId: UUID,
   file: File,
   dateOrder: ImportDateOrder = "AUTO",
+  adjustments?: RoomAllocationAdjustments,
 ): Promise<ServiceResponse<RoomAllocationSaved>> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("scheduleGroupId", scheduleGroupId);
   if (dateOrder !== "AUTO") {
     formData.append("dateOrder", dateOrder);
+  }
+  if (adjustments && [adjustments.times, adjustments.rooms, adjustments.dates ?? {}, adjustments.anchors ?? {}].some((part) => Object.keys(part).length > 0)) {
+    formData.append("adjustments", JSON.stringify(adjustments));
   }
   return performRequest<RoomAllocationSaved>({
     url: `${ROOM_ALLOCATION_ENDPOINT}/save`,
@@ -77,7 +85,34 @@ async function staffRoomAllocation(scheduleGroupId: UUID, assignmentIds: UUID[])
   });
 }
 
+/** GET /api/room-allocation/batches: saved allocations of an exam period, newest first. */
+async function listBatches(scheduleGroupId: UUID): Promise<ServiceResponse<RoomAllocationBatch[]>> {
+  return performRequest<RoomAllocationBatch[]>({ url: `${ROOM_ALLOCATION_ENDPOINT}/batches`, method: "GET", params: { scheduleGroupId } });
+}
+
+/** POST /api/room-allocation/batches/{id}/undo: deletes that save's exam rooms and their staff. */
+async function undoBatch(id: UUID): Promise<ServiceResponse<RoomAllocationUndone>> {
+  return performRequest<RoomAllocationUndone>({ url: `${ROOM_ALLOCATION_ENDPOINT}/batches/${id}/undo`, method: "POST", data: {} });
+}
+
+function fileNameFrom(contentDisposition: string | undefined, fallback: string) {
+  const match = contentDisposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+  return match?.[1] ? decodeURIComponent(match[1].replace(/"/g, "").trim()) : fallback;
+}
+
+/** GET /api/room-allocation/batches/{id}/door-sheets (PDF) or /export (Excel) of a saved allocation. */
+async function downloadBatchFile(id: UUID, kind: "door-sheets" | "export"): Promise<ServiceResponse<BulkTemplateDownload>> {
+  const fallback = kind === "door-sheets" ? "door-sheets.pdf" : "room-allocation.xlsx";
+  return performRequest<Blob, BulkTemplateDownload>(
+    { url: `${ROOM_ALLOCATION_ENDPOINT}/batches/${id}/${kind}`, method: "GET", responseType: "blob", timeout: 120_000 },
+    (blob, response) => ({ blob, fileName: fileNameFrom(response.headers["content-disposition"], fallback) }),
+  );
+}
+
 export const roomAllocationService = {
+  downloadBatchFile,
+  listBatches,
+  undoBatch,
   previewRoomAllocation,
   saveRoomAllocation,
   staffRoomAllocation,

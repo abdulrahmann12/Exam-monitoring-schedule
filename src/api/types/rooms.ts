@@ -25,6 +25,8 @@ export interface RoomRequest {
   roomCategoryId?: UUID;
   /** false = out of service. Left out: in service (new room) or unchanged (edit). */
   active?: boolean;
+  /** Building ("H"). Left out: guessed from the name (new room) or unchanged (edit). "" = no building. */
+  building?: string;
 }
 
 export interface Room {
@@ -41,6 +43,8 @@ export interface Room {
   roomCategoryName: string | null;
   /** Special type (lab, studio): only for exams that ask for exactly this type. */
   roomCategorySpecial: boolean;
+  /** Building, or null when not known. Split exams stay in one building; a chief covers rooms of one building. */
+  building: string | null;
   createdAt: ISOInstant;
   updatedAt: ISOInstant;
 }

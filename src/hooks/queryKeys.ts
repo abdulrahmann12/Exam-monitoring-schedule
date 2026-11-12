@@ -32,6 +32,10 @@ export const queryKeys = {
     all: ["people"] as const,
     list: (params?: unknown) => ["people", "list", params ?? null] as const,
   },
+  roomAllocationBatches: {
+    all: ["room-allocation-batches"] as const,
+    list: (groupId: unknown) => ["room-allocation-batches", groupId ?? null] as const,
+  },
   roomCategories: {
     all: ["room-categories"] as const,
   },

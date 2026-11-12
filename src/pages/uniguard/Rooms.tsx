@@ -66,6 +66,12 @@ type SortKey = "name" | "capacity-high" | "capacity-low" | "staff-high";
 
 const HALL_LABELS: Record<HallGender, string> = { MIXED: "Mixed", MALE: "Men only", FEMALE: "Women only" };
 
+/** Same rule as the server: "H101" → H, "S-12" → S; "Lab 2" or "Hall 100" show no building. */
+function guessBuilding(name: string): string | null {
+  const match = /^([A-Za-z]{1,3})[-.]?\d/.exec(name.trim());
+  return match ? match[1].toUpperCase() : null;
+}
+
 export default function Rooms() {
   const { canEdit } = usePermissions();
   const roomsQuery = useRoomsQuery();
@@ -82,6 +88,7 @@ export default function Rooms() {
   const [hall, setHall] = useState<HallFilter>("ALL");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [roomType, setRoomType] = useState<string>("ALL");
+  const [building, setBuilding] = useState<string>("ALL");
   const categoriesQuery = useRoomCategoriesQuery();
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const [sort, setSort] = useState<SortKey>("name");
@@ -98,6 +105,7 @@ export default function Rooms() {
         || (status === "IN_SERVICE" && room.active)
         || (status === "OUT_OF_SERVICE" && !room.active))
       && (roomType === "ALL" || (roomType === "NONE" ? !room.roomCategoryId : room.roomCategoryId === roomType))
+      && (building === "ALL" || (building === "NONE" ? !room.building : room.building === building))
       && (!needle || room.name.toLowerCase().includes(needle)));
     const byName = (a: Room, b: Room) => a.name.localeCompare(b.name, undefined, { numeric: true });
     const sorters: Record<SortKey, (a: Room, b: Room) => number> = {
@@ -107,10 +115,14 @@ export default function Rooms() {
       "staff-high": (a, b) => b.minInvigilators - a.minInvigilators || byName(a, b),
     };
     return [...list].sort(sorters[sort]);
-  }, [rooms, query, type, hall, status, roomType, sort]);
+  }, [rooms, query, type, hall, status, roomType, building, sort]);
+  const buildings = useMemo(
+    () => [...new Set(rooms.map((room) => room.building).filter((value): value is string => !!value))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [rooms],
+  );
 
   // A new search or filter starts again at the first page.
-  useEffect(() => setPage(0), [query, type, hall, status, roomType, sort]);
+  useEffect(() => setPage(0), [query, type, hall, status, roomType, building, sort]);
 
   if (roomsQuery.isLoading) {
     return (
@@ -129,7 +141,7 @@ export default function Rooms() {
   }
 
   const totalSeats = visible.reduce((sum, room) => sum + room.capacity, 0);
-  const filtered = query.trim() !== "" || type !== "ALL" || hall !== "ALL" || status !== "ALL" || roomType !== "ALL";
+  const filtered = query.trim() !== "" || type !== "ALL" || hall !== "ALL" || status !== "ALL" || roomType !== "ALL" || building !== "ALL";
   const outOfService = rooms.filter((room) => !room.active).length;
 
   async function handleSubmit(payload: RoomRequest) {
@@ -196,6 +208,7 @@ export default function Rooms() {
             title={editingRoom ? `Edit ${editingRoom.name}` : "Add room"}
             initialValue={editingRoom}
             categories={categories}
+            buildings={buildings}
             trigger={
               <Button className="gap-2" onClick={() => { setEditingRoom(null); setDialogOpen(true); }}>
                 <Plus className="h-4 w-4" /> Add room
@@ -220,8 +233,9 @@ export default function Rooms() {
           />
         ) : (
           <>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="relative flex-1">
+            {/* Six filters: the search gets its own row unless the screen is very wide, so it never shrinks to a stub. */}
+            <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center">
+              <div className="relative min-w-[16rem] flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${rooms.length} rooms`} className="h-10 bg-card pl-9" aria-label="Search rooms" />
               </div>
@@ -240,6 +254,16 @@ export default function Rooms() {
                     {(Object.keys(HALL_LABELS) as HallGender[]).map((value) => <SelectItem key={value} value={value}>{HALL_LABELS[value]}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {buildings.length > 0 && (
+                  <Select value={building} onValueChange={setBuilding}>
+                    <SelectTrigger className="h-10 w-40 bg-card" aria-label="Building"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Any building</SelectItem>
+                      {buildings.map((value) => <SelectItem key={value} value={value}>Building {value}</SelectItem>)}
+                      {rooms.some((room) => !room.building) && <SelectItem value="NONE">No building</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                )}
                 <Select value={roomType} onValueChange={setRoomType}>
                   <SelectTrigger className="h-10 w-44 bg-card" aria-label="Room type"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -273,7 +297,7 @@ export default function Rooms() {
                 <DoorOpen className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                 <p className="font-medium">No room matches</p>
                 <p className="mt-1 text-sm text-muted-foreground">Try another search or filter.</p>
-                {filtered && <Button variant="outline" size="sm" className="mt-4" onClick={() => { setQuery(""); setType("ALL"); setHall("ALL"); setStatus("ALL"); setRoomType("ALL"); }}>Clear filters</Button>}
+                {filtered && <Button variant="outline" size="sm" className="mt-4" onClick={() => { setQuery(""); setType("ALL"); setHall("ALL"); setStatus("ALL"); setRoomType("ALL"); setBuilding("ALL"); }}>Clear filters</Button>}
               </div>
             ) : (
               <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
@@ -283,6 +307,7 @@ export default function Rooms() {
                       <tr>
                         <th className="px-5 py-2.5 font-medium">Room</th>
                         <th className="px-3 py-2.5 font-medium">Seats</th>
+                        <th className="px-3 py-2.5 font-medium">Building</th>
                         <th className="px-3 py-2.5 font-medium">Size</th>
                         <th className="px-3 py-2.5 font-medium">Staff needed</th>
                         <th className="w-12 px-3 py-2.5"><span className="sr-only">Actions</span></th>
@@ -316,6 +341,7 @@ export default function Rooms() {
                             </div>
                           </td>
                           <td data-label="Seats" className="px-3 py-3 tabular-nums">{room.capacity}</td>
+                          <td data-label="Building" className="px-3 py-3">{room.building ?? <span className="text-muted-foreground">–</span>}</td>
                           <td data-label="Size" className="px-3 py-3"><Badge className={cn("border", ROOM_TYPE_BADGES[room.type])}>{ROOM_TYPE_LABELS[room.type]}</Badge></td>
                           <td data-label="Staff needed" data-stack="full" className="px-3 py-3 text-muted-foreground">1 chief + {room.minInvigilators} invigilator{room.minInvigilators === 1 ? "" : "s"}</td>
                           <td data-stack="actions" className="px-3 py-3 text-right">
@@ -383,6 +409,7 @@ function RoomDialog({
   title,
   initialValue,
   categories,
+  buildings,
   trigger,
   onOpenChange,
   onSubmit,
@@ -392,6 +419,7 @@ function RoomDialog({
   title: string;
   initialValue: Room | null;
   categories: RoomCategory[];
+  buildings: string[];
   trigger: ReactNode;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: RoomRequest) => Promise<void>;
@@ -408,6 +436,7 @@ function RoomDialog({
             minInvigilators: initialValue.minInvigilators,
             hallGender: initialValue.hallGender ?? "MIXED",
             roomCategoryId: initialValue.roomCategoryId ?? undefined,
+            building: initialValue.building ?? "",
             active: initialValue.active,
           }
         : DEFAULT_ROOM_FORM,
@@ -425,10 +454,29 @@ function RoomDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label>Room name</Label>
-            <Input value={formState.name} onChange={(event) => setFormState((previous) => ({ ...previous, name: event.target.value }))} placeholder="Hall A" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_8rem]">
+            <div>
+              <Label>Room name</Label>
+              <Input value={formState.name} onChange={(event) => setFormState((previous) => ({ ...previous, name: event.target.value }))} placeholder="Hall A" />
+            </div>
+            <div>
+              <Label htmlFor="room-building">Building</Label>
+              <Input
+                id="room-building"
+                list="room-buildings"
+                maxLength={60}
+                value={formState.building ?? ""}
+                onChange={(event) => setFormState((previous) => ({ ...previous, building: event.target.value }))}
+                placeholder={formState.building === undefined ? (guessBuilding(formState.name) ?? "–") : "–"}
+                aria-describedby="room-building-help"
+              />
+              <datalist id="room-buildings">{buildings.map((value) => <option key={value} value={value} />)}</datalist>
+            </div>
           </div>
+          <p id="room-building-help" className="-mt-2 text-xs text-muted-foreground">
+            Building: split exams stay in one building, and a chief covers rooms of one building.
+            {initialValue ? " Empty = no building." : " Empty = taken from the name (H101 → H)."}
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Capacity</Label>
