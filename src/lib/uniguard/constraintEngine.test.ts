@@ -88,6 +88,23 @@ describe("hall gender, own subject and student-based seats", () => {
     expect(tiers.unavailable.map((u) => u.reason)).toEqual(["Teaches this subject"]);
   });
 
+  it("hides people busy in another exam period or on leave (the server said so)", () => {
+    const people = [
+      staff({ id: "atef", role: "INVIGILATOR" }), staff({ id: "free", role: "INVIGILATOR" }), staff({ id: "away", role: "INVIGILATOR" }),
+      staff({ id: "c1", role: "CHIEF_INVIGILATOR" }),
+    ];
+    const elsewhere = new Map([
+      ["atef", { invigilator: true, chiefRooms: 0, onLeave: false, reason: "Busy in test at 12:00–13:00" }],
+      ["away", { invigilator: false, chiefRooms: 0, onLeave: true, reason: "On leave" }],
+      ["c1", { invigilator: false, chiefRooms: 99, onLeave: false, reason: "Busy in test at 12:00–13:00" }],
+    ]);
+    const tiers = getPickerTiers({ role: "INVIGILATOR", day: "Sun", staff: people, assignments: [], elsewhere });
+    expect(tiers.free.map((person) => person.id)).toEqual(["free"]);
+    expect(tiers.unavailable.map((u) => u.reason).sort()).toEqual(["Busy in test at 12:00–13:00", "On leave"]);
+    const chiefs = getPickerTiers({ role: "CHIEF_INVIGILATOR", day: "Sun", staff: people, assignments: [], elsewhere });
+    expect(chiefs.free).toHaveLength(0); // chief rooms elsewhere count toward the parallel-room limit
+  });
+
   it("needs more invigilators when the student count requires it", () => {
     expect(requiredInvigilators({ minInvigilators: 1 }, 70, 30)).toBe(3);
     expect(requiredInvigilators({ minInvigilators: 2 }, 20, 30)).toBe(2);

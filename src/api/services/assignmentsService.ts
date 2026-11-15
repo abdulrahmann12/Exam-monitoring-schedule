@@ -83,7 +83,24 @@ async function deleteAssignment(id: UUID): Promise<ServiceResponse<null>> {
   );
 }
 
+/** One person who is not free at a date and time for a reason outside this exam period. */
+export interface BusyElsewherePerson {
+  personId: UUID;
+  /** Invigilates in another exam period at an overlapping time. */
+  invigilator: boolean;
+  /** Rooms where the person is chief in another exam period at an overlapping time. */
+  chiefRooms: number;
+  onLeave: boolean;
+  reason: string;
+}
+
+/** People busy at that date and time in other exam periods, or on leave (the server checks all periods). */
+async function getBusyElsewhere(scheduleGroupId: UUID, date: string, slotId: UUID): Promise<ServiceResponse<{ people: BusyElsewherePerson[] }>> {
+  return performRequest<{ people: BusyElsewherePerson[] }>({ url: `${ASSIGNMENTS_ENDPOINT}/busy-elsewhere`, method: "GET", params: { scheduleGroupId, date, slotId } });
+}
+
 export const assignmentsService = {
+  getBusyElsewhere,
   deleteAllAssignments,
   getAssignments,
   createAssignment,

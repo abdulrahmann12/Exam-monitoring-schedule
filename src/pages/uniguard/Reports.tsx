@@ -17,7 +17,7 @@ import { AppLayout } from "@/components/uniguard/AppLayout";
 import { useAssignmentsQuery } from "@/hooks";
 import { useAnalyticsQuery, useWorkloadReportQuery } from "@/hooks/useReports";
 import { formatDay } from "@/lib/dashboard/insights";
-import { examsPerDay, formatHours, hoursDistribution, topShare } from "@/lib/reports/insights";
+import { examsPerDay, formatDuration, formatHours, hoursDistribution, roomsCovered, topShare } from "@/lib/reports/insights";
 import { cn } from "@/lib/utils";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { getErrorMessage, showErrorToast } from "@/utils/error";
@@ -377,7 +377,6 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
         <Kpi icon={CalendarDays} label="Sessions" value={String(report.sessions)} />
         <Kpi icon={DoorOpen} label="Hours" value={formatHours(report.hours)} />
       </div>
-      <p className="text-xs text-muted-foreground">A session is one sitting (date and time). A chief covering two rooms at the same time works one session.</p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input placeholder="Filter by name or department" value={filter} onChange={(event) => setFilter(event.target.value)} className="h-10 bg-card sm:max-w-xs" aria-label="Filter people" />
@@ -406,6 +405,12 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+          <p className="border-b border-border bg-muted/20 px-4 py-2.5 text-xs text-muted-foreground">
+            <b className="font-medium text-foreground">Session</b> = one exam sitting (a date and a time) the person works.{" "}
+            <b className="font-medium text-foreground">Hours</b> = how long those sittings last together.{" "}
+            <b className="font-medium text-foreground">Exam rooms</b> = rooms they supervise; a chief can cover several rooms at the same time,
+            so a chief often has more rooms than sessions. <b className="font-medium text-foreground">Days</b> = different exam days.
+          </p>
           <div className="overflow-x-auto">
             <table className="stack-table w-full min-w-[760px] text-sm">
               <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -413,10 +418,10 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
                   <th className="px-4 py-2.5 font-medium">Name</th>
                   <th className="px-4 py-2.5 font-medium">Department</th>
                   <th className="px-4 py-2.5 font-medium">Role</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Sessions</th>
-                  <th className="px-4 py-2.5 font-medium">Hours</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Rooms (chief / inv.)</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Days</th>
+                  <th className="px-4 py-2.5 text-right font-medium" title="Exam sittings (date + time) this person works">Sessions</th>
+                  <th className="px-4 py-2.5 font-medium" title="Total length of those sittings">Hours</th>
+                  <th className="px-4 py-2.5 text-right font-medium" title="Exam rooms supervised, as chief and as invigilator">Exam rooms</th>
+                  <th className="px-4 py-2.5 text-right font-medium" title="Different exam days">Days</th>
                 </tr>
               </thead>
               <tbody>
@@ -432,10 +437,13 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
                     <td data-label="Hours" className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${(row.hours / maxHours) * 100}%` }} /></div>
-                        <span className="tabular-nums">{formatHours(row.hours)}</span>
+                        <span className="whitespace-nowrap tabular-nums">{formatDuration(row.hours)}</span>
                       </div>
                     </td>
-                    <td data-label="Rooms (chief / inv.)" className="px-4 py-2.5 text-right tabular-nums">{row.roomsAsChief} / {row.roomsAsInvigilator}</td>
+                    <td data-label="Exam rooms" className="px-4 py-2.5 text-right tabular-nums"
+                      title={row.roomsAsChief > row.sessions ? `${row.roomsAsChief} exam rooms in ${row.sessions} sittings: several rooms at the same time` : undefined}>
+                      {roomsCovered(row.roomsAsChief, row.roomsAsInvigilator)}
+                    </td>
                     <td data-label="Days" className="px-4 py-2.5 text-right tabular-nums">{row.days}</td>
                   </tr>
                 ))}
@@ -444,7 +452,7 @@ function HoursPerPerson({ scheduleGroupId }: { scheduleGroupId: string }) {
                 <tr className="border-t-2 border-border bg-muted/30 font-semibold">
                   <td data-stack="full" className="px-4 py-2.5" colSpan={3}>Total ({rows.length} {rows.length === 1 ? "person" : "people"})</td>
                   <td data-label="Sessions" className="px-4 py-2.5 text-right tabular-nums">{totals.sessions}</td>
-                  <td data-label="Hours" className="px-4 py-2.5 tabular-nums">{formatHours(totals.hours)}</td>
+                  <td data-label="Hours" className="px-4 py-2.5 whitespace-nowrap tabular-nums">{formatDuration(totals.hours)}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>

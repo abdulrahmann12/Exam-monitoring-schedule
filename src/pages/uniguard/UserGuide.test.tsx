@@ -16,5 +16,5 @@ describe("user guides page", () => {
       expect(screen.getByRole("link", { name: new RegExp(section.title) })).toHaveAttribute("href", `/user-guide/read#${section.id}`));
     expect(screen.getByRole("link", { name: /Read online/ })).toHaveAttribute("href", "/user-guide/read");
     expect(screen.getByRole("link", { name: /Download PDF/ })).toHaveAttribute("href", USER_GUIDE_PDF);
-  });
+  }, 20_000); // one role query per guide section: slow when the whole suite runs at once
 });

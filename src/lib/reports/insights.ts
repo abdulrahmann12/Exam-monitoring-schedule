@@ -41,6 +41,21 @@ export function examsPerDay(assignments: Assignment[]): Array<{ date: string; ro
 }
 
 /** "12.5" / "3" — hours without a pointless ".0". */
+/** 4.75 → "4 h 45 min", 3 → "3 h", 0.5 → "30 min", 0 → "0 h": easier to read than a decimal. */
+export function formatDuration(hours: number): string {
+  const total = Math.round(Number(hours) * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0 && m > 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
+/** "13 as chief", "4 as invigilator", "2 as chief · 3 as invigilator" or "—". */
+export function roomsCovered(asChief: number, asInvigilator: number): string {
+  const parts = [asChief > 0 ? `${asChief} as chief` : "", asInvigilator > 0 ? `${asInvigilator} as invigilator` : ""].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
 export function formatHours(value: number): string {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }

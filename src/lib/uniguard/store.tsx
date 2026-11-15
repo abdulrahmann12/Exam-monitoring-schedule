@@ -179,6 +179,7 @@ function toRoom(room: ApiRoom): Room {
     capacity: room.capacity,
     minInvigilators: room.minInvigilators,
     hallGender: room.hallGender ?? "MIXED",
+    active: room.active !== false,
   };
 }
 

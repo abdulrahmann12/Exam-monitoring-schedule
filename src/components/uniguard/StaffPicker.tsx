@@ -4,7 +4,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Staff, Day, Assignment, Role, Room, roleLabel } from "@/lib/uniguard/types";
 import { Check, X, CircleDot, Clock, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getPickerTiers } from "@/lib/uniguard/constraintEngine";
+import { getPickerTiers, type ElsewhereBusy } from "@/lib/uniguard/constraintEngine";
 
 interface Props {
   trigger: React.ReactNode;
@@ -18,13 +18,15 @@ interface Props {
   room?: Room;
   /** Exam subject code — hides people who teach it. */
   subjectCode?: string | null;
+  /** People busy in other exam periods at an overlapping time, or on leave (from the server). */
+  elsewhere?: Map<string, ElsewhereBusy>;
 }
 
-export function StaffPicker({ trigger, role, day, staff, slotAssignments, currentId, onPick, room, subjectCode }: Props) {
+export function StaffPicker({ trigger, role, day, staff, slotAssignments, currentId, onPick, room, subjectCode, elsewhere }: Props) {
   const [open, setOpen] = useState(false);
   const tiers = useMemo(
-    () => getPickerTiers({ role, day, staff, assignments: slotAssignments, currentId, room, subjectCode }),
-    [role, day, staff, slotAssignments, currentId, room, subjectCode]
+    () => getPickerTiers({ role, day, staff, assignments: slotAssignments, currentId, room, subjectCode, elsewhere }),
+    [role, day, staff, slotAssignments, currentId, room, subjectCode, elsewhere]
   );
   const totalAvailable = tiers.free.length + tiers.partiallyBusy.length;
   const label = roleLabel(role);
@@ -48,17 +50,11 @@ export function StaffPicker({ trigger, role, day, staff, slotAssignments, curren
               </CommandGroup>
             )}
             {tiers.unavailable.length > 0 && (
-              <CommandGroup heading={<span className="flex items-center gap-1.5 text-muted-foreground"><Ban className="h-3 w-3" /> Unavailable ({tiers.unavailable.length})</span>}>
-                {tiers.unavailable.slice(0, 20).map(({ staff: s, reason }) => (
-                  <CommandItem key={s.id} value={`__disabled_${s.name}`} disabled className="opacity-50 cursor-not-allowed flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-sm">{s.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{reason}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{s.totalAssignments}×</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              // Only free people are listed; the others are counted so nobody wonders where they went.
+              <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground" title={tiers.unavailable.map(({ staff: s, reason }) => `${s.name}: ${reason}`).join("\n")}>
+                <Ban className="mr-1 inline h-3 w-3" />
+                {tiers.unavailable.length} not shown: not free at this time (busy at an overlapping time, off day, on leave, hall gender or teaches this subject).
+              </p>
             )}
             {currentId && (
               <CommandGroup>

@@ -17,3 +17,5 @@ export * from "./useEmailOutbox";
 export * from "./useReports";
 
 export * from "./useProfile";
+export * from "./useRoomAllocation";
+export * from "./useRoomCategories";

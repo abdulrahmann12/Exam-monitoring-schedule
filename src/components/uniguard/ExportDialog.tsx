@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { exportPdf, exportXlsx } from "@/lib/uniguard/exporters";
 
 interface Props {
   open: boolean;
@@ -33,7 +32,7 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
 
   const availableDates = useMemo(() => [...new Set(schedule.map((e) => e.date))].sort(), [schedule]);
 
-  const onExport = () => {
+  const onExport = async () => {
     if (schedule.length === 0) {
       toast.error("Nothing to export — generate a schedule first.");
       return;
@@ -51,6 +50,8 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
     };
     const dateStr = format(date, "yyyy-MM-dd");
     try {
+      // PDF and Excel libraries are big: load them only when someone exports.
+      const { exportPdf, exportXlsx } = await import("@/lib/uniguard/exporters");
       const filename = fmt === "pdf"
         ? exportPdf(ctx, { mode, date: dateStr })
         : exportXlsx(ctx, { mode, date: dateStr });
@@ -130,7 +131,7 @@ export function ExportDialog({ open, onOpenChange, defaultDate, initialFormat = 
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={onExport} className="gap-2"><FileDown className="h-4 w-4" /> Export {fmt.toUpperCase()}</Button>
+          <Button onClick={() => void onExport()} className="gap-2"><FileDown className="h-4 w-4" /> Export {fmt.toUpperCase()}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

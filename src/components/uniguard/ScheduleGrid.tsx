@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { assignmentsService } from "@/api/services/assignmentsService";
+import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+import { useScheduleGroup } from "@/state/scheduleGroup/ScheduleGroupProvider";
+import type { ElsewhereBusy } from "@/lib/uniguard/constraintEngine";
 import { useUniGuard } from "@/lib/uniguard/store";
 import { Lock, Unlock, AlertTriangle, Users, GripVertical, Plus, Trash2, RotateCcw, Undo2, CheckCircle2, Clock3, BookOpen, DoorOpen, Eraser } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +36,20 @@ export function ScheduleGrid({ date, slotId }: Props) {
   const pickerAssignments = useMemo(
     () => overlappingAssignmentsForSlot(schedule.filter((item) => item.date === date).flatMap((item) => item.assignments), slots, slotId),
     [date, schedule, slotId, slots],
+  );
+  // The server checks every exam period; this page only loads its own. Ask who is busy elsewhere (or on leave)
+  // at this date and time, so the pickers only offer people who are really free. If it fails, nothing is hidden.
+  const { activeGroupId } = useScheduleGroup();
+  const busyElsewhereQuery = useQuery({
+    queryKey: ["assignments", "busy-elsewhere", activeGroupId, date, slotId],
+    queryFn: async () => unwrapServiceResponse(await assignmentsService.getBusyElsewhere(activeGroupId!, date, slotId)),
+    enabled: !!activeGroupId && !!date && !!slotId,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const elsewhere = useMemo(
+    () => new Map<string, ElsewhereBusy>((busyElsewhereQuery.data?.people ?? []).map((person) => [person.personId, person])),
+    [busyElsewhereQuery.data],
   );
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -147,7 +166,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                         avgLoad={avgLoad}
                         missing={!chief}
                         onProfile={() => chief && setProfileId(chief.id)}
-                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
+                        picker={<StaffPicker role="CHIEF_INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} elsewhere={elsewhere} currentId={assignment.chiefInvigilatorId} onPick={(id) => assign(assignment.roomId, "chief", 0, id)} trigger={<button className="absolute inset-0" aria-label="Assign Chief Invigilator" />} />}
                       />
                     </div>
 
@@ -171,7 +190,7 @@ export function ScheduleGrid({ date, slotId }: Props) {
                                   avgLoad={avgLoad}
                                   missing={!person && index < required}
                                   onProfile={() => person && setProfileId(person.id)}
-                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
+                                  picker={<StaffPicker role="INVIGILATOR" day={day} staff={staff} room={room} subjectCode={assignment.subjectCode} slotAssignments={pickerAssignments} elsewhere={elsewhere} currentId={id} onPick={(picked) => assign(assignment.roomId, "invigilator", index, picked)} trigger={<button className="absolute inset-0" aria-label="Assign Invigilator" />} />}
                                   leading={person ? <GripVertical className="h-3.5 w-3.5 text-invigilator/50 shrink-0" /> : null}
                                   trailing={
                                     <button

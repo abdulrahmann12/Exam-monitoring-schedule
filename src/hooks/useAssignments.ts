@@ -4,13 +4,14 @@ import type { AssignmentRequest, AssignmentsQuery, UUID } from "@/api";
 import { assignmentsService } from "@/services";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
+import { withoutRepeats } from "@/api/utils/pagination";
 
 import { queryKeys } from "./queryKeys";
 import { useSafeMutation } from "./useSafeRequest";
 
 const defaultAssignmentsParams: AssignmentsQuery = {
   page: 0,
-  size: 100,
+  size: 1000, // one request for a whole exam period (the server allows up to 1000 per page)
   sortBy: "examDate",
   direction: "ASC",
 };
@@ -52,10 +53,10 @@ async function fetchAllAssignments(params: AssignmentsQuery = defaultAssignments
       }))),
   );
 
-  return [
+  return withoutRepeats([
     ...firstPage.items,
     ...remainingPages.flatMap((page) => page.items),
-  ];
+  ]);
 }
 
 export function useAssignmentsQuery(params: AssignmentsQuery = defaultAssignmentsParams) {

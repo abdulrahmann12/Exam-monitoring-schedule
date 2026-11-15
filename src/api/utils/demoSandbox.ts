@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 
 import { isDemoUser } from "../../lib/demoMode";
 import type {
@@ -735,7 +734,11 @@ function createRoomRecord(payload: RoomRequest, options?: { createdAt?: string; 
     capacity: toPositiveInteger(payload.capacity, 40),
     type: payload.type,
     minInvigilators: toPositiveInteger(payload.minInvigilators, getMinInvigilatorsForCapacity(payload.capacity)),
-    active: true,
+    active: payload.active !== false,
+    roomCategoryId: payload.roomCategoryId ?? null,
+    roomCategoryName: null,
+    roomCategorySpecial: false,
+    building: payload.building || null,
     createdAt: timestamp,
     updatedAt: createIsoTimestamp(),
   };
@@ -849,7 +852,8 @@ function deleteAssignmentsByField(field: "roomId" | "timeSlotId", id: UUID): voi
 }
 
 function parseWorkbookRows(file: File): Promise<Array<{ row: number; values: string[] }>> {
-  return file.arrayBuffer().then((buffer) => {
+  // The Excel library is big: load it only when a demo user really uploads a file.
+  return Promise.all([file.arrayBuffer(), import("xlsx")]).then(([buffer, XLSX]) => {
     const workbook = XLSX.read(buffer, { type: "array" });
     const firstSheetName = workbook.SheetNames[0];
 
@@ -1273,6 +1277,7 @@ function handleSettingsMutation(path: string, method: DemoMethod, data: unknown)
     minRestMinutes: payload.minRestMinutes ?? existing?.minRestMinutes ?? 0,
     studentsPerInvigilator: payload.studentsPerInvigilator ?? existing?.studentsPerInvigilator ?? 0,
     chiefMaxParallelRooms: payload.chiefMaxParallelRooms ?? existing?.chiefMaxParallelRooms ?? 2,
+    examFillPercent: payload.examFillPercent ?? existing?.examFillPercent ?? 100,
     documentSignatures: payload.documentSignatures ?? existing?.documentSignatures ?? [],
   };
 

@@ -14,3 +14,4 @@ export * from "./twoFactor";
 export * from "./sso";
 export * from "./emailOutbox";
 export * from "./reports";
+export * from "./roomAllocation";

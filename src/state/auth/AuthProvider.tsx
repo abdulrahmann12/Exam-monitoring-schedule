@@ -13,6 +13,7 @@ import type { AuthResponse, CurrentSession, LoginOutcome, LoginRequest, ServiceR
 import { twoFactorService } from "@/api";
 import { clearLegacyAuthStorage, onSessionEnded } from "@/api/utils/authStorage";
 import { clearDemoSandbox, syncDemoSandboxUser } from "@/api/utils/demoSandbox";
+import { clearAllDrafts } from "@/lib/uniguard/allocationDraft";
 import { LOGIN_ROUTE, redirectToLogin, registerNavigationHandler } from "@/api/utils/navigation";
 import { authService } from "@/services";
 import { unwrapServiceResponse } from "@/api/utils/serviceResponse";
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** Forget everything that belonged to the previous user. */
   const resetToSignedOut = useCallback(() => {
     clearDemoSandbox();
+    clearAllDrafts(); // unsaved Room Allocation plans (they contain the uploaded exam list)
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "auth" });
     queryClient.setQueryData(SESSION_QUERY_KEY, null);
   }, [queryClient]);
