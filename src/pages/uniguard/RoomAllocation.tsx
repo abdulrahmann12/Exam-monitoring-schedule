@@ -28,6 +28,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
+import { formatDuration } from "@/lib/uniguard/dropCheck";
 import { cn } from "@/lib/utils";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
@@ -443,11 +444,12 @@ export default function RoomAllocation() {
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm" aria-label="Columns">
                 {[
                   ["Date", "The day of the exam.", true],
-                  ["Time Slot", "Empty = Uni-Guard picks the best time that day.", false],
+                  ["Time Slot", "One of your time slots, as long as the Duration. Empty = Uni-Guard picks one of that length.", false],
                   ["Subject", "Name and/or code.", true],
                   ["Students", "How many sit the exam.", true],
                   ["Room Type", "Empty = normal room; e.g. Computer Lab = only that type.", false],
                   ["Gender", "Male / Female = halls of that gender first; empty = any hall.", false],
+                  ["Duration", "Minutes (5–300). The exam only goes into a time slot of exactly this length.", true],
                 ].map(([name, text, required]) => (
                   <div key={String(name)} className="contents">
                     <dt className="flex items-center gap-1.5 font-medium">
@@ -468,6 +470,7 @@ export default function RoomAllocation() {
                   <li>Special rooms (labs, studios) only go to exams that ask for that type; nothing spills over when they run out.</li>
                   <li>Male / Female exams use halls of that gender first, then Mixed halls (shown in yellow). Men and women of one subject: two rows.</li>
                   <li>Never used: rooms out of service and rooms already booked at that time.</li>
+                  <li>Time slots are never made from the file: add them on the Time Slots page first, one for every exam length you use.</li>
                 </ul>
               </details>
             </div>
@@ -743,6 +746,11 @@ function SittingCard({ sitting, onEdit }: {
                     {exam.subjectName && exam.subjectCode && <span className="text-xs text-muted-foreground">{exam.subjectCode}</span>}
                     {exam.roomType && <span className={BADGE + " bg-primary/10 text-primary"}>{exam.roomType}</span>}
                     {exam.gender && <span className={BADGE + " bg-shared-soft text-shared"}>{exam.gender}</span>}
+                    {exam.durationMinutes > 0 && (
+                      <span className={BADGE + " bg-muted text-muted-foreground"} title="How long the exam lasts (Duration column)">
+                        {formatDuration(exam.durationMinutes)}
+                      </span>
+                    )}
                     {exam.timeChosen && (
                       <span className={BADGE + " bg-accent text-primary"} title="The file had no time: Uni-Guard chose it">
                         <Clock3 className="h-3 w-3" aria-hidden /> Time chosen

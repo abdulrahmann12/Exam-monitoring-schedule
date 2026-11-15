@@ -1,7 +1,7 @@
 import { type DragEvent, useEffect, useMemo, useState } from "react";
 
 import type { AllocatedExam, AllocationSitting, RoomAllocationPreview, Room } from "@/api";
-import { checkDrop, problemReasons, type DropCheck, type Dragged, minutes, movingGroup, overlaps, type Target } from "@/lib/uniguard/dropCheck";
+import { checkDrop, problemReasons, withExamSeats, type DropCheck, type Dragged, minutes, movingGroup, overlaps, type Target } from "@/lib/uniguard/dropCheck";
 import { cn } from "@/lib/utils";
 
 const isProblem = (exam: AllocatedExam) => exam.unplaced > 0 || exam.mixedHalls;
@@ -79,7 +79,8 @@ export function AllocationRoomGrid({
 
   const rows = useMemo(() => {
     const byId = new Map<string, Room | { id: string; name: string; building: string | null; capacity: number }>();
-    for (const room of rooms.filter((item) => item.active)) byId.set(room.id, room);
+    // Exam seats (Settings → exam seating %), like the rooms inside the plan.
+    for (const room of withExamSeats(rooms, preview.examFillPercent).filter((item) => item.active)) byId.set(room.id, room);
     for (const sitting of sittings) {
       for (const exam of sitting.exams) {
         for (const room of exam.rooms) {
@@ -92,7 +93,7 @@ export function AllocationRoomGrid({
       list = list.filter((room) => [...(cells.get(room.id)?.values() ?? [])].some((cell) => isProblem(cell.exam)));
     }
     return list.sort((a, b) => (a.building ?? "~").localeCompare(b.building ?? "~") || a.name.localeCompare(b.name, undefined, { numeric: true }));
-  }, [rooms, sittings, cells, onlyProblems]);
+  }, [rooms, sittings, cells, onlyProblems, preview.examFillPercent]);
 
   /** Rows of the exam being dragged (all its rooms light up: they move together). */
   const movingRows = useMemo(() => (dragged ? new Set(movingGroup(dragged).map((exam) => exam.row)) : new Set<number>()), [dragged]);

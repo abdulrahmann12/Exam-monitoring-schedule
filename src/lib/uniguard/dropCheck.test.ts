@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AllocatedExam, AllocationSitting, Room, RoomAllocationPreview } from "@/api";
 
-import { checkDrop, movingGroup } from "./dropCheck";
+import { checkDrop, examSeats, movingGroup, withExamSeats } from "./dropCheck";
 
 const room = (id: string, capacity: number, extra: Partial<Room> = {}): Room => ({
   id, name: id, capacity, type: "MEDIUM", minInvigilators: 1, hallGender: "MIXED", active: true,
@@ -17,7 +17,7 @@ const ROOMS = [
 ];
 const exam = (row: number, code: string, students: number, rooms: [string, number][], extra: Partial<AllocatedExam> = {}): AllocatedExam => ({
   row, subjectName: null, subjectCode: code, students, roomType: null, freeOfType: null, timeChosen: false, edited: false,
-  gender: null, mixedHalls: false, unplaced: 0, hints: [],
+  gender: null, mixedHalls: false, unplaced: 0, hints: [], durationMinutes: 0,
   rooms: rooms.map(([id, seated]) => ({ roomId: id, name: id, capacity: ROOMS.find((r) => r.id === id)!.capacity, students: seated })),
   ...extra,
 });
@@ -77,6 +77,33 @@ describe("drop rules", () => {
     const men = morning.exams[2];
     const femaleHall = checkDrop(preview, ROOMS, { exam: men, sitting: morning, fromRoomId: "B1" }, { date: "2027-01-10", time: "12:00–13:00", roomId: "F1" });
     expect(femaleHall.reason).toContain("Female hall");
+  });
+
+  it("an exam only goes to a time slot of exactly its length", () => {
+    const twoHours = { ...X, durationMinutes: 120 };
+    const sitting = { ...morning, exams: [twoHours, ...morning.exams.slice(1)] };
+    const shorter = checkDrop(preview, ROOMS, { exam: twoHours, sitting, fromRoomId: "A1" }, { date: "2027-01-10", time: "12:00–13:00" });
+    expect(shorter).toMatchObject({ ok: false, reason: "✗ X lasts 2 h; 12:00–13:00 is 1 h." });
+    const sameLength = checkDrop(preview, ROOMS, { exam: twoHours, sitting, fromRoomId: "A1" }, { date: "2027-01-11", time: "09:00–11:00" });
+    expect(sameLength.ok).toBe(true); // another day, same 2-hour slot
+    const swap = checkDrop(preview, ROOMS, { exam: twoHours, sitting, fromRoomId: "A2" }, { date: "2027-01-10", time: "09:00–11:00", roomId: "C1" });
+    expect(swap.ok).toBe(true); // same time: only a room changes
+  });
+
+  it("uses only the exam seats of each room (Settings → exam seating %)", () => {
+    expect(examSeats(60, 70)).toBe(42);
+    expect(examSeats(60, 100)).toBe(60);
+    expect(examSeats(1, 10)).toBe(1); // never 0 seats
+    expect(withExamSeats([room("A1", 60)], 50)[0].capacity).toBe(30);
+    // At noon A1, F1, C1, S1 are free: 160 seats in full, 112 at 70%. X has 80 students: fits either way…
+    expect(checkDrop(preview, ROOMS, { exam: X, sitting: morning, fromRoomId: "A1" }, { date: "2027-01-10", time: "12:00–13:00" }).ok).toBe(true);
+    // …but a 150-student exam only fits with every seat.
+    const big = { ...X, students: 150 };
+    const sitting = { ...morning, exams: [big, ...morning.exams.slice(1)] };
+    expect(checkDrop(preview, ROOMS, { exam: big, sitting, fromRoomId: "A1" }, { date: "2027-01-10", time: "12:00–13:00" }).ok).toBe(true);
+    const tight = checkDrop({ ...preview, examFillPercent: 70 }, ROOMS, { exam: big, sitting, fromRoomId: "A1" }, { date: "2027-01-10", time: "12:00–13:00" });
+    expect(tight.ok).toBe(false);
+    expect(tight.reason).toContain("only 112 seats"); // A1 42 + F1 28 + C1 35 + S1 7 at 70% (160 seats in full)
   });
 
   it("men and women of one subject move together", () => {

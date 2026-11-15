@@ -9,6 +9,20 @@ export function minutes(time: string): [number, number] {
   return [start, end];
 }
 
+/** Length of "09:00–10:30" in minutes. */
+export const lengthOf = (time: string) => {
+  const [start, end] = minutes(time);
+  return end - start;
+};
+
+/** 90 → "1 h 30 min", 120 → "2 h", 45 → "45 min" (same words as the server). */
+export function formatDuration(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
 export const overlaps = (a: string, b: string) => {
   const [as, ae] = minutes(a);
   const [bs, be] = minutes(b);
@@ -16,6 +30,17 @@ export const overlaps = (a: string, b: string) => {
 };
 
 const subjectOf = (exam: AllocatedExam) => exam.subjectCode ?? exam.subjectName ?? `row ${exam.row}`;
+
+/** Exam seats of a room (Settings → exam seating %): rounded down, at least 1. Same rule as the server. */
+export function examSeats(capacity: number, percent = 100): number {
+  if (capacity <= 0) return 0;
+  return Math.max(1, Math.floor((capacity * Math.min(100, Math.max(10, percent))) / 100));
+}
+
+/** The rooms with their exam seats as "capacity", for every seat count on the Room Allocation page. */
+export function withExamSeats<T extends { capacity: number }>(rooms: T[], percent = 100): T[] {
+  return percent >= 100 ? rooms : rooms.map((room) => ({ ...room, capacity: examSeats(room.capacity, percent) }));
+}
 
 /** May this room seat that exam at all (room type and hall gender)? */
 export function roomFits(exam: AllocatedExam, room: Room) {
@@ -59,7 +84,8 @@ export function movingGroup(dragged: Dragged): AllocatedExam[] {
  * the same time with another room only swaps that one room; the room must be the right type and gender hall,
  * not booked or in use; and there must be enough free seats there for every student. The server checks again.
  */
-export function checkDrop(preview: RoomAllocationPreview, rooms: Room[], dragged: Dragged, target: Target): DropCheck {
+export function checkDrop(preview: RoomAllocationPreview, allRooms: Room[], dragged: Dragged, target: Target): DropCheck {
+  const rooms = withExamSeats(allRooms, preview.examFillPercent);
   const byId = new Map(rooms.map((room) => [room.id, room]));
   const sameTime = target.date === dragged.sitting.date && target.time === dragged.sitting.time;
   const group = movingGroup(dragged);
@@ -77,6 +103,12 @@ export function checkDrop(preview: RoomAllocationPreview, rooms: Room[], dragged
       if (sameSitting && groupRows.has(exam.row)) continue; // these move away
       for (const room of exam.rooms) busy.set(room.roomId, `in use by ${subjectOf(exam)}`);
     }
+  }
+
+  // An exam only fits a time slot of exactly its own length.
+  const duration = dragged.exam.durationMinutes;
+  if (!sameTime && duration > 0 && lengthOf(target.time) !== duration) {
+    return { ok: false, reason: `✗ ${subjectOf(dragged.exam)} lasts ${formatDuration(duration)}; ${target.time} is ${formatDuration(lengthOf(target.time))}.` };
   }
 
   const targetRoom = target.roomId ? byId.get(target.roomId) : undefined;

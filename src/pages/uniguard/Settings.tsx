@@ -38,6 +38,7 @@ interface Form {
   minRestMinutes: number;
   studentsPerInvigilator: number;
   chiefMaxParallelRooms: number;
+  examFillPercent: number;
   documentSignatures: DocumentSignature[];
 }
 
@@ -53,6 +54,7 @@ function toForm(settings: SettingsData): Form {
     minRestMinutes: settings.minRestMinutes ?? 0,
     studentsPerInvigilator: settings.studentsPerInvigilator ?? 0,
     chiefMaxParallelRooms: settings.chiefMaxParallelRooms ?? 2,
+    examFillPercent: settings.examFillPercent ?? 100,
     documentSignatures: settings.documentSignatures ?? [],
   };
 }
@@ -72,6 +74,7 @@ function toRequest(form: Form, settings: SettingsData): SettingsRequest {
     minRestMinutes: whole(form.minRestMinutes),
     studentsPerInvigilator: whole(form.studentsPerInvigilator),
     chiefMaxParallelRooms: Math.min(10, whole(form.chiefMaxParallelRooms, 1)),
+    examFillPercent: Math.min(100, whole(form.examFillPercent, 10)),
     documentSignatures: form.documentSignatures
       .map((signature) => ({ title: signature.title.trim(), name: signature.name.trim() }))
       .filter((signature) => signature.title || signature.name),
@@ -372,6 +375,13 @@ function RulesSection({ form, set }: { form: Form; set: (patch: Partial<Form>) =
           id="chief-rooms" label="Rooms one chief invigilator can cover at the same time" min={1} max={10}
           value={form.chiefMaxParallelRooms} onChange={(value) => set({ chiefMaxParallelRooms: value })}
           example={`A chief can be chief of ${form.chiefMaxParallelRooms} room${form.chiefMaxParallelRooms === 1 ? "" : "s"} at overlapping times. Invigilators always cover one room at a time.`}
+        />
+        <Rule
+          id="exam-fill" label="Exam seating: % of each room's seats used (Room Allocation)" min={10} max={100}
+          value={form.examFillPercent} onChange={(value) => set({ examFillPercent: value })}
+          example={form.examFillPercent >= 100
+            ? "Every seat is used. Lower it to leave gaps between students: at 70% a 60-seat room takes 42 students."
+            : `A 60-seat room takes ${Math.max(1, Math.floor((60 * form.examFillPercent) / 100))} students in an exam. Rooms keep their real capacity on the Rooms page.`}
         />
         <Rule
           id="students-per-invigilator" label="Students per invigilator" max={1000}

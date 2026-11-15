@@ -30,6 +30,8 @@ export interface AllocatedExam {
   hints: string[];
   /** Students without a seat (not enough free rooms). */
   unplaced: number;
+  /** How long the exam lasts, in minutes (from the Duration column). It only fits time slots of exactly this length. */
+  durationMinutes: number;
   rooms: AllocatedRoom[];
 }
 
@@ -60,6 +62,8 @@ export interface RoomAllocationPreview {
   columnsRecognised: string[];
   /** Rooms already booked outside this plan on the plan's days (room view: no drop there). */
   booked: { date: string; time: string; roomId: UUID; label: string }[];
+  /** Settings → exam seating: % of each room's seats used (room seats in the plan are already exam seats). */
+  examFillPercent?: number;
 }
 
 /** POST /api/room-allocation/save */

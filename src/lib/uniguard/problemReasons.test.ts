@@ -6,7 +6,7 @@ import { problemReasons } from "@/lib/uniguard/dropCheck";
 
 const exam = (extra: Partial<AllocatedExam>): AllocatedExam => ({
   row: 25, subjectName: "Sports Psychology", subjectCode: "SPT210", students: 52, roomType: null, freeOfType: null, timeChosen: true,
-  edited: false, gender: null, mixedHalls: false, unplaced: 0, hints: [], rooms: [], ...extra,
+  edited: false, gender: null, mixedHalls: false, unplaced: 0, hints: [], rooms: [], durationMinutes: 120, ...extra,
 });
 
 describe("why an exam is yellow", () => {

@@ -8,7 +8,7 @@ const plan = (time: string, rooms: string[], unplaced = 0): RoomAllocationPrevie
   exams: 1, examsFullySeated: unplaced ? 0 : 1, students: 100, studentsUnplaced: unplaced, roomsUsed: rooms.length, seats: 100, emptySeats: 0,
   sittings: [{ date: "2027-01-10", day: "Sunday", time, timeSlotId: null, freeRooms: 4, exams: [{
     row: 2, subjectName: "Calculus", subjectCode: "MATH101", students: 100, roomType: null, freeOfType: null, timeChosen: false, edited: false,
-    gender: null, mixedHalls: false, unplaced, hints: [], rooms: rooms.map((name) => ({ roomId: name, name, capacity: 50, students: 50 })),
+    gender: null, mixedHalls: false, unplaced, hints: [], durationMinutes: 120, rooms: rooms.map((name) => ({ roomId: name, name, capacity: 50, students: 50 })),
   }] }],
   warnings: [], timeSlotsToCreate: [], columnsRecognised: [], booked: [],
 });

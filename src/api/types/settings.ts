@@ -20,6 +20,8 @@ export interface SettingsRequest {
   studentsPerInvigilator?: number;
   /** Rooms one chief invigilator may cover at the same time (1–10). */
   chiefMaxParallelRooms?: number;
+  /** Room Allocation uses this % of each room's seats (10–100; gaps against cheating). */
+  examFillPercent?: number;
   /** Signature blocks for exported schedules; omit to keep, [] to remove. */
   documentSignatures?: DocumentSignature[];
 }
@@ -45,5 +47,7 @@ export interface Settings {
   studentsPerInvigilator: number;
   /** Rooms one chief invigilator may cover at the same time (1–10, default 2). */
   chiefMaxParallelRooms: number;
+  /** Room Allocation uses this % of each room's seats (10–100, default 100). */
+  examFillPercent: number;
   documentSignatures: DocumentSignature[];
 }

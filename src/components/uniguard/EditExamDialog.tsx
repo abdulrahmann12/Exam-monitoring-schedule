@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FormSelect } from "@/components/uniguard/FormSelect";
+import { lengthOf, withExamSeats } from "@/lib/uniguard/dropCheck";
 import { cn } from "@/lib/utils";
 
 /** "09:00–11:00" (as shown) ↔ "09:00-11:00" (as sent). */
@@ -77,13 +78,18 @@ export function EditExamDialog({
 
   if (!target) return null;
   const { exam, sitting } = target;
-  const timeOptions = [...new Set([toKey(sitting.time), ...times])].sort();
+  // Only time slots of exactly the exam's length (the server refuses others too).
+  const timeOptions = [...new Set([toKey(sitting.time), ...times])]
+    .filter((value) => !target?.exam.durationMinutes || lengthOf(value) === target.exam.durationMinutes)
+    .sort();
   const needle = search.trim().toLowerCase();
-  const list = rooms
+  // Seat counts are exam seats (Settings → exam seating %), as in the plan.
+  const examRooms = withExamSeats(rooms, preview?.examFillPercent);
+  const list = examRooms
     .filter((room) => room.active)
     .filter((room) => !needle || room.name.toLowerCase().includes(needle) || (room.building ?? "").toLowerCase() === needle)
     .sort((a, b) => (a.building ?? "~").localeCompare(b.building ?? "~") || a.name.localeCompare(b.name, undefined, { numeric: true }));
-  const seats = rooms.filter((room) => selected.includes(room.id)).reduce((sum, room) => sum + room.capacity, 0);
+  const seats = examRooms.filter((room) => selected.includes(room.id)).reduce((sum, room) => sum + room.capacity, 0);
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
 
   return (
