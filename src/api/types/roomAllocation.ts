@@ -64,6 +64,8 @@ export interface RoomAllocationPreview {
   booked: { date: string; time: string; roomId: UUID; label: string }[];
   /** Settings → exam seating: % of each room's seats used (room seats in the plan are already exam seats). */
   examFillPercent?: number;
+  /** "Time slots to use": per exam length in the file, its time slots and whether Uni-Guard may choose them. */
+  slotChoices?: AllocationSlotChoice[];
 }
 
 /** POST /api/room-allocation/save */
@@ -117,6 +119,14 @@ export interface RoomAllocationStaffed {
   hints: string[];
 }
 
+export interface AllocationSlotChoice {
+  durationMinutes: number;
+  /** Rows of the file with this length. */
+  exams: number;
+  /** key "HH:mm-HH:mm", time "HH:mm–HH:mm"; used = ticked. */
+  slots: { key: string; time: string; label: string; used: boolean }[];
+}
+
 /** Changes made on the page before saving, by file row: another time ("HH:mm-HH:mm") and/or exact room ids. */
 export interface RoomAllocationAdjustments {
   times: Record<string, string>;
@@ -125,4 +135,6 @@ export interface RoomAllocationAdjustments {
   dates?: Record<string, string>;
   /** Dropped on this room: it goes first, Uni-Guard adds rooms when it is too small. */
   anchors?: Record<string, string>;
+  /** Unticked under "Time slots to use" ("HH:mm-HH:mm"); undefined = the exam period's remembered choice. */
+  skipTimes?: string[];
 }

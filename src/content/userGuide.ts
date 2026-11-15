@@ -263,6 +263,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         "**By exam**: one row per exam with its rooms. Badges: **Time chosen** (the file had no time), **Changed by you**, the room type and the gender.",
         "**Problems** (students without a seat, Male/Female exams in Mixed halls) come with **hints**: another time that day, a smaller exam to move, rooms out of service you could switch on.",
         "**Show only problems** hides everything that is fine.",
+        "**Time slots to use**: the exam lengths in your file with their time slots. Untick a time slot so Uni-Guard does not choose it for exams without a time (for example an extra 11:30 slot you do not want). Times written in the file are kept. The ticks apply to every day, one slot of each length always stays ticked, and **Save rooms** remembers them for the exam period.",
       ] },
       img("allocation-rooms", "The plan, by room: every room and time slot of one day"),
       { kind: "table", head: ["In the room view", "Meaning"], rows: [

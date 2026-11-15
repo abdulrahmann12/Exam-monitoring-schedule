@@ -3,6 +3,13 @@ import { performRequest } from "../utils/request";
 
 const ROOM_ALLOCATION_ENDPOINT = "/api/room-allocation";
 
+/** Sent when an exam was changed on the page, or when time slots were ticked/unticked (an empty list = all ticked). */
+export function hasAdjustments(adjustments?: RoomAllocationAdjustments): boolean {
+  if (!adjustments) return false;
+  return adjustments.skipTimes !== undefined
+    || [adjustments.times, adjustments.rooms, adjustments.dates ?? {}, adjustments.anchors ?? {}].some((part) => Object.keys(part).length > 0);
+}
+
 /**
  * POST /api/room-allocation/preview
  * Uploads an exam list without rooms; the server proposes rooms. Nothing is saved.
@@ -20,7 +27,7 @@ async function previewRoomAllocation(
   if (dateOrder !== "AUTO") {
     formData.append("dateOrder", dateOrder);
   }
-  if (adjustments && [adjustments.times, adjustments.rooms, adjustments.dates ?? {}, adjustments.anchors ?? {}].some((part) => Object.keys(part).length > 0)) {
+  if (hasAdjustments(adjustments)) {
     formData.append("adjustments", JSON.stringify(adjustments));
   }
 
@@ -63,7 +70,7 @@ async function saveRoomAllocation(
   if (dateOrder !== "AUTO") {
     formData.append("dateOrder", dateOrder);
   }
-  if (adjustments && [adjustments.times, adjustments.rooms, adjustments.dates ?? {}, adjustments.anchors ?? {}].some((part) => Object.keys(part).length > 0)) {
+  if (hasAdjustments(adjustments)) {
     formData.append("adjustments", JSON.stringify(adjustments));
   }
   return performRequest<RoomAllocationSaved>({

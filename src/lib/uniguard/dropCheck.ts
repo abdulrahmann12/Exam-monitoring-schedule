@@ -31,6 +31,11 @@ export const overlaps = (a: string, b: string) => {
 
 const subjectOf = (exam: AllocatedExam) => exam.subjectCode ?? exam.subjectName ?? `row ${exam.row}`;
 
+/** Time slots unticked under "Time slots to use" ("HH:mm-HH:mm"): Uni-Guard does not use them, drops are refused. */
+export function skippedTimes(preview: Pick<RoomAllocationPreview, "slotChoices"> | null | undefined): Set<string> {
+  return new Set((preview?.slotChoices ?? []).flatMap((choice) => choice.slots.filter((slot) => !slot.used).map((slot) => slot.key)));
+}
+
 /** Exam seats of a room (Settings → exam seating %): rounded down, at least 1. Same rule as the server. */
 export function examSeats(capacity: number, percent = 100): number {
   if (capacity <= 0) return 0;
@@ -103,6 +108,10 @@ export function checkDrop(preview: RoomAllocationPreview, allRooms: Room[], drag
       if (sameSitting && groupRows.has(exam.row)) continue; // these move away
       for (const room of exam.rooms) busy.set(room.roomId, `in use by ${subjectOf(exam)}`);
     }
+  }
+
+  if (!sameTime && skippedTimes(preview).has(target.time.replace("–", "-"))) {
+    return { ok: false, reason: `✗ ${target.time} is unticked under “Time slots to use”.` };
   }
 
   // An exam only fits a time slot of exactly its own length.

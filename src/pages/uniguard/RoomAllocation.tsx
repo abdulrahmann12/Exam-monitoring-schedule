@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock3, DoorOpen, History, Lightbulb, PencilLine, Printer, Undo2, Download, FileSpreadsheet, LayoutGrid, Loader2, Upload, Users, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle2, Clock3, DoorOpen, History, Lightbulb, PencilLine, Printer, Undo2, Download, FileSpreadsheet, LayoutGrid, Loader2, Upload, Users, X } from "lucide-react";
 import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,7 +28,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
-import { formatDuration } from "@/lib/uniguard/dropCheck";
+import { formatDuration, skippedTimes } from "@/lib/uniguard/dropCheck";
 import { cn } from "@/lib/utils";
 import { useScheduleGroup } from "@/state/scheduleGroup";
 import { showErrorToast } from "@/utils/error";
@@ -188,7 +188,8 @@ export default function RoomAllocation() {
       return;
     }
     setFile(picked);
-    setAdjustments({ times: {}, rooms: {} }); // changes belong to the old file's rows
+    // Changes belong to the old file's rows; the time slot ticks stay.
+    setAdjustments({ times: {}, rooms: {}, skipTimes: adjustments.skipTimes });
     setHistory([]); // and so do the moves Undo last move could bring back
     setRowErrors([]);
     setPreview(null);
@@ -311,10 +312,20 @@ export default function RoomAllocation() {
     }
   }
 
-  const copyChanges = (): Required<RoomAllocationAdjustments> => ({
+  const copyChanges = (): Required<Omit<RoomAllocationAdjustments, "skipTimes">> & Pick<RoomAllocationAdjustments, "skipTimes"> => ({
     times: { ...adjustments.times }, rooms: { ...adjustments.rooms },
     dates: { ...(adjustments.dates ?? {}) }, anchors: { ...(adjustments.anchors ?? {}) },
+    skipTimes: adjustments.skipTimes,
   });
+
+  /** "Time slots to use": tick or untick one time slot and plan again (kept in Undo last move too). */
+  function toggleSlot(key: string) {
+    if (!preview) return;
+    const skipped = skippedTimes(preview);
+    if (skipped.has(key)) skipped.delete(key);
+    else skipped.add(key);
+    void replan({ ...copyChanges(), skipTimes: [...skipped].sort() });
+  }
 
   /** Applies one change from the Edit dialog and plans again with it. */
   function applyChange(change: ExamChange) {
@@ -378,7 +389,7 @@ export default function RoomAllocation() {
   }
 
   function undoChanges() {
-    void replan({ times: {}, rooms: {} });
+    void replan({ times: {}, rooms: {}, skipTimes: adjustments.skipTimes }); // the time slot ticks are not exam changes
   }
 
   // Ctrl+Z (see the listener at the top) calls the latest version of this.
@@ -577,6 +588,9 @@ export default function RoomAllocation() {
           </div>
         )}
         {preview && (
+          <SlotChoices preview={preview} disabled={busy || saved !== null} onToggle={toggleSlot} />
+        )}
+        {preview && (
           <PreviewResult
             preview={preview}
             onEdit={saved || busy ? undefined : (exam, sitting) => setEditing({ exam, sitting })}
@@ -711,6 +725,67 @@ function PreviewResult({ preview, onEdit, onMove, times }: {
 }
 
 const isProblem = (exam: { unplaced: number; mixedHalls: boolean }) => exam.unplaced > 0 || exam.mixedHalls;
+
+/**
+ * "Time slots to use": the exam lengths in the file with their time slots. Unticked ones are not chosen for exams
+ * without a time (times written in the file are kept). One of each length always stays ticked. Saving remembers it.
+ */
+function SlotChoices({ preview, disabled, onToggle }: {
+  preview: RoomAllocationPreview;
+  disabled: boolean;
+  onToggle: (key: string) => void;
+}) {
+  const choices = preview.slotChoices ?? [];
+  if (choices.length === 0) return null;
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 shadow-card" aria-label="Time slots to use">
+      <div className="mb-3">
+        <h2 className="flex items-center gap-2 font-semibold"><Clock3 className="h-4 w-4 text-primary" /> Time slots to use</h2>
+        <p className="text-sm text-muted-foreground">
+          Untick a time slot so Uni-Guard does not choose it for exams without a time. Times written in your file are kept.
+          The same ticks apply to every day, and saving remembers them for this exam period.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {choices.map((choice) => {
+          const ticked = choice.slots.filter((slot) => slot.used).length;
+          return (
+            <div key={choice.durationMinutes} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="w-44 shrink-0 text-sm font-medium">
+                {formatDuration(choice.durationMinutes)} exams <span className="font-normal text-muted-foreground">({choice.exams})</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {choice.slots.map((slot) => {
+                  const last = slot.used && ticked === 1;
+                  return (
+                    <button
+                      key={slot.key}
+                      type="button"
+                      aria-pressed={slot.used}
+                      disabled={disabled || last}
+                      title={last ? `At least one ${formatDuration(choice.durationMinutes)} time slot stays ticked.` : slot.label}
+                      onClick={() => onToggle(slot.key)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm tabular-nums transition-colors disabled:cursor-not-allowed",
+                        slot.used
+                          ? "border-primary/40 bg-primary/10 text-foreground hover:bg-primary/15"
+                          : "border-border bg-muted/40 text-muted-foreground line-through hover:bg-muted",
+                        disabled && "opacity-60",
+                      )}
+                    >
+                      {slot.used ? <Check className="h-3.5 w-3.5 text-primary" /> : <X className="h-3.5 w-3.5" />}
+                      {slot.time}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function SittingCard({ sitting, onEdit }: {
   sitting: AllocationSitting;
