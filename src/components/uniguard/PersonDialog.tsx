@@ -189,7 +189,7 @@ export function PersonDialog({ open, person, defaultRole = "CHIEF_INVIGILATOR", 
                     role="radio"
                     aria-checked={(form.gender ?? null) === value}
                     onClick={() => set({ gender: value })}
-                    className={cn("rounded-md px-2 py-1.5 text-xs font-medium transition-colors", (form.gender ?? null) === value ? "bg-card shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    className={cn("rounded-md border px-2 py-1.5 text-xs font-medium transition-colors", (form.gender ?? null) === value ? "border-primary bg-card text-primary shadow-sm" : "border-transparent text-muted-foreground hover:text-foreground")}
                   >
                     {label}
                   </button>

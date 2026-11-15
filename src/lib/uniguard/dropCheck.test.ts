@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AllocatedExam, AllocationSitting, Room, RoomAllocationPreview } from "@/api";
 
-import { checkDrop, examSeats, movingGroup, withExamSeats } from "./dropCheck";
+import { checkDrop, examSeats, movingGroup, skippedTimes, withExamSeats } from "./dropCheck";
 
 const room = (id: string, capacity: number, extra: Partial<Room> = {}): Room => ({
   id, name: id, capacity, type: "MEDIUM", minInvigilators: 1, hallGender: "MIXED", active: true,
@@ -88,6 +88,19 @@ describe("drop rules", () => {
     expect(sameLength.ok).toBe(true); // another day, same 2-hour slot
     const swap = checkDrop(preview, ROOMS, { exam: twoHours, sitting, fromRoomId: "A2" }, { date: "2027-01-10", time: "09:00–11:00", roomId: "C1" });
     expect(swap.ok).toBe(true); // same time: only a room changes
+  });
+
+  it("refuses a time slot unticked under Time slots to use (same time still swaps rooms)", () => {
+    const ticks: RoomAllocationPreview = { ...preview, slotChoices: [{ durationMinutes: 60, exams: 1, slots: [
+      { key: "12:00-13:00", time: "12:00–13:00", label: "Noon", used: false },
+      { key: "15:00-16:00", time: "15:00–16:00", label: "Afternoon", used: true },
+    ] }] };
+    expect([...skippedTimes(ticks)]).toEqual(["12:00-13:00"]);
+    expect(skippedTimes(preview).size).toBe(0);
+    const unticked = checkDrop(ticks, ROOMS, { exam: X, sitting: morning, fromRoomId: "A1" }, { date: "2027-01-10", time: "12:00–13:00" });
+    expect(unticked).toMatchObject({ ok: false, reason: "✗ 12:00–13:00 is unticked under “Time slots to use”." });
+    const swap = checkDrop(ticks, ROOMS, { exam: noon.exams[0], sitting: noon, fromRoomId: "B1" }, { date: "2027-01-10", time: "12:00–13:00", roomId: "C1" });
+    expect(swap.ok).toBe(true); // the exam already sits there: only a room changes
   });
 
   it("uses only the exam seats of each room (Settings → exam seating %)", () => {

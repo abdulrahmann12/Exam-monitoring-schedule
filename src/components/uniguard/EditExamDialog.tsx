@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FormSelect } from "@/components/uniguard/FormSelect";
-import { lengthOf, withExamSeats } from "@/lib/uniguard/dropCheck";
+import { lengthOf, skippedTimes, withExamSeats } from "@/lib/uniguard/dropCheck";
 import { cn } from "@/lib/utils";
 
 /** "09:00–11:00" (as shown) ↔ "09:00-11:00" (as sent). */
@@ -79,7 +79,9 @@ export function EditExamDialog({
   if (!target) return null;
   const { exam, sitting } = target;
   // Only time slots of exactly the exam's length (the server refuses others too).
-  const timeOptions = [...new Set([toKey(sitting.time), ...times])]
+  // Unticked under "Time slots to use" are not offered (the exam's own time always is).
+  const skipped = skippedTimes(preview);
+  const timeOptions = [...new Set([toKey(sitting.time), ...times.filter((value) => !skipped.has(value))])]
     .filter((value) => !target?.exam.durationMinutes || lengthOf(value) === target.exam.durationMinutes)
     .sort();
   const needle = search.trim().toLowerCase();
